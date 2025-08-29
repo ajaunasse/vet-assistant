@@ -7,8 +7,7 @@ import sys
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from infrastructure.database.connection import Base
-from infrastructure.database.models import *
+from src.infrastructure.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

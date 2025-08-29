@@ -15,13 +15,15 @@ from src.application import (
     GetSessionHandler,
     GetSessionMessagesHandler,
 )
-from src.domain.entities import VeterinaryAssessment
+from src.domain.entities import VeterinaryAssessment, CollectionResponse as DomainCollectionResponse
 from src.infrastructure.database import get_database_session
 from src.infrastructure import SQLSessionRepository, SQLMessageRepository, AIService
 
 from .schemas import (
     SendMessageRequest,
     VeterinaryAssessmentResponse,
+    CollectionResponse,
+    PatientDataResponse,
     SessionResponse,
     SessionWithMessagesResponse,
     ChatMessageResponse,
@@ -115,11 +117,17 @@ async def create_session(
     command = CreateSessionCommand()
     session = await handler.handle(command)
     
+    patient_data = None
+    if session.patient_data:
+        patient_data = PatientDataResponse(**session.patient_data.to_dict())
+    
     return SessionResponse(
         id=session.id,
         created_at=session.created_at,
         updated_at=session.updated_at,
         current_assessment=None,
+        patient_data=patient_data,
+        is_collecting_data=session.is_collecting_data,
     )
 
 
@@ -136,6 +144,7 @@ async def send_message(
         
         return VeterinaryAssessmentResponse(
             assessment=assessment.assessment,
+            status=assessment.status,
             localization=assessment.localization,
             differentials=assessment.differentials,
             diagnostics=assessment.diagnostics,
@@ -164,6 +173,7 @@ async def get_session(
         if session.current_assessment:
             current_assessment = VeterinaryAssessmentResponse(
                 assessment=session.current_assessment.assessment,
+                status=session.current_assessment.status,
                 localization=session.current_assessment.localization,
                 differentials=session.current_assessment.differentials,
                 diagnostics=session.current_assessment.diagnostics,
@@ -173,12 +183,18 @@ async def get_session(
                 confidence_level=session.current_assessment.confidence_level,
             )
 
+        patient_data = None
+        if session.patient_data:
+            patient_data = PatientDataResponse(**session.patient_data.to_dict())
+
         return SessionWithMessagesResponse(
             session=SessionResponse(
                 id=session.id,
                 created_at=session.created_at,
                 updated_at=session.updated_at,
                 current_assessment=current_assessment,
+                patient_data=patient_data,
+                is_collecting_data=session.is_collecting_data,
             ),
             messages=[
                 ChatMessageResponse(
@@ -190,5 +206,44 @@ async def get_session(
                 for msg in messages
             ],
         )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/sessions/{session_id}/patient-data", response_model=PatientDataResponse)
+async def get_patient_data(
+    session_id: str,
+    handler: Annotated[GetSessionHandler, Depends(get_session_handler)],
+) -> PatientDataResponse:
+    """Get collected patient data for a session."""
+    try:
+        session, _ = await handler.handle(GetSessionQuery(session_id=session_id))
+        
+        if session.patient_data:
+            return PatientDataResponse(**session.patient_data.to_dict())
+        else:
+            return PatientDataResponse()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/sessions/{session_id}/patient-data")
+async def clear_patient_data(
+    session_id: str,
+    handler: Annotated[GetSessionHandler, Depends(get_session_handler)],
+) -> dict:
+    """Clear collected patient data for a session."""
+    try:
+        session, _ = await handler.handle(GetSessionQuery(session_id=session_id))
+        
+        # Clear patient data
+        from src.domain.entities import PatientData
+        session.patient_data = PatientData()
+        
+        # Save changes
+        session_repo = SQLSessionRepository(get_database_session().__anext__().__await__().__next__())
+        await session_repo.update(session)
+        
+        return {"message": "Patient data cleared successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

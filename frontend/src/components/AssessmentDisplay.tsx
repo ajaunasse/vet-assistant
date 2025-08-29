@@ -44,14 +44,23 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
     }
   };
 
+  const isCompleted = assessment.status === 'completed';
+
   return (
     <div className="assessment-display">
       <div className="assessment-header">
-        <h3>📋 Évaluation Diagnostique</h3>
-        <span className="confidence-badge">
-          {getConfidenceIcon(assessment.confidence_level)} 
-          Confiance: {assessment.confidence_level}
-        </span>
+        <h3>{isCompleted ? '📋 Diagnostic Final' : '🔍 Analyse en cours'}</h3>
+        <div className="header-badges">
+          <span className={`status-badge ${assessment.status}`}>
+            {assessment.status === 'completed' ? '✅ Complété' : '🔄 En cours'}
+          </span>
+          {isCompleted && (
+            <span className="confidence-badge">
+              {getConfidenceIcon(assessment.confidence_level)} 
+              Confiance: {assessment.confidence_level}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Message principal en évidence */}
@@ -59,82 +68,89 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
         <p className="main-assessment">{assessment.assessment}</p>
       </div>
 
-      {/* Sections collapsibles */}
-      <div className="collapsible-sections">
-        <button 
-          className="expand-button"
-          onClick={handleExpandToggle}
-          aria-expanded={isExpanded}
-        >
-          <span className="expand-icon">{isExpanded ? '−' : '+'}</span>
-          Détails de l'analyse
-        </button>
+      {/* Questions pour la phase de collecte */}
+      {!isCompleted && assessment.questions.length > 0 && (
+        <div className="questions-section">
+          <h4>❓ Questions de suivi</h4>
+          <ul className="questions-list">
+            {assessment.questions.map((question, index) => (
+              <li key={index}>{question}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {isExpanded && (
-          <div className="expanded-content" ref={expandedContentRef}>
-            {assessment.localization && (
-              <div className="assessment-section">
-                <h4>🎯 Localisation Neuroanatomique</h4>
-                <p className="localization">{assessment.localization}</p>
-              </div>
-            )}
+      {/* Diagnostic complet affiché seulement si status === 'completed' */}
+      {isCompleted && (
+        <div className="collapsible-sections">
+          <button 
+            className="expand-button"
+            onClick={handleExpandToggle}
+            aria-expanded={isExpanded}
+          >
+            <span className="expand-icon">{isExpanded ? '−' : '+'}</span>
+            Détails du diagnostic
+          </button>
 
-            {assessment.differentials.length > 0 && (
-              <div className="assessment-section">
-                <h4>🔍 Diagnostics Différentiels</h4>
-                <div className="differentials-list">
-                  {assessment.differentials.map((differential, index) => (
-                    <div key={index} className="differential-item">
-                      <div className="differential-header">
-                        <span className="condition-name">{differential.condition}</span>
-                        <span 
-                          className="probability-badge"
-                          style={{ backgroundColor: getProbabilityColor(differential.probability) }}
-                        >
-                          {differential.probability}
-                        </span>
-                      </div>
-                      <p className="rationale">{differential.rationale}</p>
-                    </div>
-                  ))}
+          {isExpanded && (
+            <div className="expanded-content" ref={expandedContentRef}>
+              {assessment.localization && (
+                <div className="assessment-section">
+                  <h4>🎯 Localisation Neuroanatomique</h4>
+                  <p className="localization">{assessment.localization}</p>
                 </div>
-              </div>
-            )}
+              )}
 
-            {assessment.diagnostics.length > 0 && (
-              <div className="assessment-section">
-                <h4>🧪 Examens Recommandés</h4>
-                <ul className="diagnostics-list">
-                  {assessment.diagnostics.map((diagnostic, index) => (
-                    <li key={index}>{diagnostic}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              {assessment.differentials.length > 0 && (
+                <div className="assessment-section">
+                  <h4>🔍 Diagnostics Différentiels</h4>
+                  <div className="differentials-list">
+                    {assessment.differentials.map((differential, index) => (
+                      <div key={index} className="differential-item">
+                        <div className="differential-header">
+                          <span className="condition-name">{differential.condition}</span>
+                          <span 
+                            className="probability-badge"
+                            style={{ backgroundColor: getProbabilityColor(differential.probability) }}
+                          >
+                            {differential.probability}
+                          </span>
+                        </div>
+                        <p className="rationale">{differential.rationale}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            <div className="assessment-section">
-              <h4>💊 Approche Thérapeutique</h4>
-              <p className="treatment">{assessment.treatment}</p>
+              {assessment.diagnostics.length > 0 && (
+                <div className="assessment-section">
+                  <h4>🧪 Examens Recommandés</h4>
+                  <ul className="diagnostics-list">
+                    {assessment.diagnostics.map((diagnostic, index) => (
+                      <li key={index}>{diagnostic}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {assessment.treatment && (
+                <div className="assessment-section">
+                  <h4>💊 Approche Thérapeutique</h4>
+                  <p className="treatment">{assessment.treatment}</p>
+                </div>
+              )}
+
+              {assessment.prognosis && (
+                <div className="assessment-section">
+                  <h4>📈 Pronostic</h4>
+                  <p className="prognosis">{assessment.prognosis}</p>
+                </div>
+              )}
             </div>
-
-            <div className="assessment-section">
-              <h4>📈 Pronostic</h4>
-              <p className="prognosis">{assessment.prognosis}</p>
-            </div>
-
-            {assessment.questions.length > 0 && (
-              <div className="assessment-section">
-                <h4>❓ Questions Clarifiantes</h4>
-                <ul className="questions-list">
-                  {assessment.questions.map((question, index) => (
-                    <li key={index}>{question}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

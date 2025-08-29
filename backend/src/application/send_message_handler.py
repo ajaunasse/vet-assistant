@@ -38,8 +38,8 @@ class SendMessageHandler:
             command.session_id, limit=20
         )
 
-        # Generate AI assessment
-        assessment = await self.ai_service.generate_assessment(messages, session)
+        # Process message using your OpenAI assistant
+        assessment = await self.ai_service.process_message(messages, session)
 
         # Create and save assistant message
         assistant_message = ChatMessage.create_assistant_message(

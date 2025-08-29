@@ -3,7 +3,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, func
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -77,6 +77,8 @@ class SessionModel(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     current_assessment = Column(JSON, nullable=True)
     openai_thread_id = Column(String(255), nullable=True)
+    patient_data = Column(JSON, nullable=True)
+    is_collecting_data = Column(Boolean, default=True)
 
     # Relationships
     messages = relationship("MessageModel", back_populates="session", cascade="all, delete-orphan")

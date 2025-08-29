@@ -7,13 +7,14 @@ from typing import List, Optional
 class VeterinaryAssessment:
     """Veterinary assessment entity with rich domain logic."""
     assessment: str
+    status: str = "processed"  # "processed" or "completed"
     localization: Optional[str] = None
     differentials: List[dict] = field(default_factory=list)
     diagnostics: List[str] = field(default_factory=list)
     treatment: str = ""
     prognosis: str = ""
     questions: List[str] = field(default_factory=list)
-    confidence_level: str = "medium"
+    confidence_level: str = "moyenne"
 
     def add_differential(self, condition: str, probability: str, rationale: str) -> None:
         """Add a differential diagnosis."""

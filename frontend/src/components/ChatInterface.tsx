@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { apiService } from '../services/api';
-import { VeterinaryAssessment } from '../types/api';
+import { VeterinaryAssessment, PatientData } from '../types/api';
 import AssessmentDisplay from './AssessmentDisplay';
+import PatientDataDisplay from './PatientDataDisplay';
 import SessionManager from '../utils/SessionManager';
 import '../styles/ChatInterface.css';
 
@@ -19,6 +20,8 @@ const ChatInterface: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [showPatientData, setShowPatientData] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -55,6 +58,18 @@ const ChatInterface: React.FC = () => {
     }
   }, [messages.length]);
 
+  const fetchPatientData = useCallback(async (sessionId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/sessions/${sessionId}/patient-data`);
+      if (response.ok) {
+        const data = await response.json();
+        setPatientData(data);
+      }
+    } catch (error) {
+      console.error('[ChatInterface] Failed to fetch patient data:', error);
+    }
+  }, []);
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim() || isLoading || !sessionId) return;
@@ -82,6 +97,9 @@ const ChatInterface: React.FC = () => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Fetch updated patient data after each message
+      await fetchPatientData(sessionId);
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMessage: Message = {
@@ -115,10 +133,22 @@ const ChatInterface: React.FC = () => {
     <div className="chat-interface">
       <div className="chat-header">
         <h1>🧠 NeuroVet - Assistant Diagnostique</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Connecté' : '🔴 Déconnecté'}
-          </span>
+        <div className="header-controls">
+          <button 
+            className={`patient-data-toggle ${showPatientData ? 'active' : ''}`}
+            onClick={() => setShowPatientData(!showPatientData)}
+            disabled={!patientData || patientData.collected_fields.length === 0}
+          >
+            📊 Données Patient
+            {patientData && patientData.collected_fields.length > 0 && (
+              <span className="data-count">({patientData.collected_fields.length})</span>
+            )}
+          </button>
+          <div className="connection-status">
+            <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? '🟢 Connecté' : '🔴 Déconnecté'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -157,6 +187,11 @@ const ChatInterface: React.FC = () => {
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Affichage des données patient */}
+      {showPatientData && patientData && (
+        <PatientDataDisplay patientData={patientData} />
+      )}
 
       <form onSubmit={sendMessage} className="chat-input-form">
         <div className="input-container">

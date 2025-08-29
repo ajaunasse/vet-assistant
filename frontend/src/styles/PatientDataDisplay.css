@@ -1,0 +1,211 @@
+.patient-data-display {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  background: linear-gradient(145deg, #f8fafc 0%, #ffffff 100%);
+  border-radius: 1rem;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+}
+
+.patient-data-empty {
+  text-align: center;
+  padding: 2rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.patient-data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.patient-data-header h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.completion-badge {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: white;
+  padding: 0.4rem 0.8rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.patient-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.data-section {
+  background: #ffffff;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.data-section:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-color: #cbd5e1;
+}
+
+.data-section h4 {
+  margin: 0 0 1rem 0;
+  color: #334155;
+  font-size: 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+}
+
+.data-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.data-item:last-child {
+  border-bottom: none;
+}
+
+.data-label {
+  font-weight: 500;
+  color: #64748b;
+  min-width: 60px;
+}
+
+.data-value {
+  font-weight: 600;
+  color: #1e293b;
+  text-align: right;
+}
+
+.basic-info {
+  border-left: 4px solid #3b82f6;
+}
+
+.symptoms {
+  border-left: 4px solid #ef4444;
+}
+
+.medical-history {
+  border-left: 4px solid #f59e0b;
+}
+
+.medications {
+  border-left: 4px solid #10b981;
+}
+
+.symptoms-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.symptom-tag {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #dc2626;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid #fecaca;
+}
+
+.history-list,
+.medications-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-list li,
+.medications-list li {
+  background: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+  border-left: 3px solid #cbd5e1;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.history-list li {
+  border-left-color: #f59e0b;
+}
+
+.medications-list li {
+  border-left-color: #10b981;
+}
+
+.completion-indicator {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+}
+
+.completion-text {
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+  color: #64748b;
+}
+
+@media (max-width: 768px) {
+  .patient-data-display {
+    padding: 1rem;
+    margin-top: 0.75rem;
+  }
+  
+  .patient-data-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  
+  .patient-data-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .data-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+  
+  .data-value {
+    text-align: left;
+  }
+}

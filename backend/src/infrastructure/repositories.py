@@ -4,7 +4,7 @@ from typing import List, Optional
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment
+from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment, PatientData
 from src.domain.repositories import SessionRepository, MessageRepository
 
 from .database import SessionModel, MessageModel
@@ -15,6 +15,10 @@ def _session_to_entity(model: SessionModel) -> ChatSession:
     current_assessment = None
     if model.current_assessment:
         current_assessment = VeterinaryAssessment(**model.current_assessment)
+    
+    patient_data = None
+    if model.patient_data:
+        patient_data = PatientData.from_dict(model.patient_data)
 
     return ChatSession(
         id=model.id,
@@ -22,6 +26,8 @@ def _session_to_entity(model: SessionModel) -> ChatSession:
         updated_at=model.updated_at,
         current_assessment=current_assessment,
         openai_thread_id=model.openai_thread_id,
+        patient_data=patient_data,
+        is_collecting_data=model.is_collecting_data if hasattr(model, 'is_collecting_data') else True,
     )
 
 
@@ -31,6 +37,7 @@ def _entity_to_session_model(entity: ChatSession) -> SessionModel:
     if entity.current_assessment:
         current_assessment_dict = {
             "assessment": entity.current_assessment.assessment,
+            "status": entity.current_assessment.status,
             "localization": entity.current_assessment.localization,
             "differentials": entity.current_assessment.differentials,
             "diagnostics": entity.current_assessment.diagnostics,
@@ -40,12 +47,18 @@ def _entity_to_session_model(entity: ChatSession) -> SessionModel:
             "confidence_level": entity.current_assessment.confidence_level,
         }
 
+    patient_data_dict = None
+    if entity.patient_data:
+        patient_data_dict = entity.patient_data.to_dict()
+
     return SessionModel(
         id=entity.id,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
         current_assessment=current_assessment_dict,
         openai_thread_id=entity.openai_thread_id,
+        patient_data=patient_data_dict,
+        is_collecting_data=entity.is_collecting_data,
     )
 
 
@@ -104,9 +117,12 @@ class SQLSessionRepository(SessionRepository):
         # Update fields
         model.updated_at = session_entity.updated_at
         model.openai_thread_id = session_entity.openai_thread_id
+        model.is_collecting_data = session_entity.is_collecting_data
+        
         if session_entity.current_assessment:
             model.current_assessment = {
                 "assessment": session_entity.current_assessment.assessment,
+                "status": session_entity.current_assessment.status,
                 "localization": session_entity.current_assessment.localization,
                 "differentials": session_entity.current_assessment.differentials,
                 "diagnostics": session_entity.current_assessment.diagnostics,
@@ -115,6 +131,9 @@ class SQLSessionRepository(SessionRepository):
                 "questions": session_entity.current_assessment.questions,
                 "confidence_level": session_entity.current_assessment.confidence_level,
             }
+        
+        if session_entity.patient_data:
+            model.patient_data = session_entity.patient_data.to_dict()
 
         await self.session.flush()
         await self.session.refresh(model)
