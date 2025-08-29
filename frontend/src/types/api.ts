@@ -46,6 +46,7 @@ export interface SessionResponse {
   id: string;
   created_at: string;
   updated_at: string;
+  slug?: string;
   current_assessment?: VeterinaryAssessment;
   patient_data?: PatientData;
   is_collecting_data: boolean;

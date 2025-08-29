@@ -58,6 +58,11 @@ export const apiService = {
     return response.data;
   },
 
+  async getSessionBySlug(slug: string) {
+    const response = await api.get(`/sessions/slug/${slug}`);
+    return response.data;
+  },
+
   async healthCheck() {
     const response = await api.get('/health');
     return response.data;

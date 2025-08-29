@@ -29,7 +29,11 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL from environment or config."""
-    return os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    # Replace aiomysql with pymysql for Alembic (synchronous)
+    if url and "mysql+aiomysql" in url:
+        url = url.replace("mysql+aiomysql", "mysql+pymysql")
+    return url
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""

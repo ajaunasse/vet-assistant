@@ -3,7 +3,9 @@ import { apiService } from '../services/api';
 import { VeterinaryAssessment, PatientData } from '../types/api';
 import AssessmentDisplay from './AssessmentDisplay';
 import PatientDataDisplay from './PatientDataDisplay';
+import ConversationSidebar from './ConversationSidebar';
 import SessionManager from '../utils/SessionManager';
+import { conversationHistory } from '../services/conversationHistory';
 import '../styles/ChatInterface.css';
 
 interface Message {
@@ -22,41 +24,94 @@ const ChatInterface: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [patientData, setPatientData] = useState<PatientData | null>(null);
   const [showPatientData, setShowPatientData] = useState(false);
+  const [currentSlug, setCurrentSlug] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Extract slug from URL path
+  const getSlugFromUrl = () => {
+    const path = window.location.pathname;
+    const slug = path.split('/').pop();
+    return slug && slug !== 'neuro-vet-assistant' ? slug : null;
+  };
+
+  const handleConversationSelect = (slug: string) => {
+    window.location.href = `/neuro-vet-assistant/${slug}`;
+  };
+
+  const handleNewConversation = () => {
+    apiService.resetSession();
+    window.location.href = '/neuro-vet-assistant/';
+  };
+
   const initializeSession = useCallback(async () => {
     try {
       console.log('[ChatInterface] Initializing session...');
-      const sessionManager = SessionManager.getInstance();
+      const slug = getSlugFromUrl();
       
-      const newSessionId = await sessionManager.getSessionId(async () => {
-        console.log('[ChatInterface] Creating session via API...');
-        return await apiService.createSession();
-      });
-      
-      console.log('[ChatInterface] Session initialized:', newSessionId);
-      setSessionId(newSessionId);
-      setIsConnected(true);
-      
-      // Add welcome message only if we don't already have messages
-      if (messages.length === 0) {
-        const welcomeMessage: Message = {
-          id: 'welcome',
-          role: 'assistant',
-          content: 'Bonjour ! Je suis votre assistant spécialisé en neurologie vétérinaire canine. Pour établir un diagnostic précis, j\'ai besoin des informations suivantes : âge, race, sexe du patient, ainsi qu\'une description détaillée des symptômes neurologiques observés.',
-          timestamp: new Date()
-        };
-        setMessages([welcomeMessage]);
+      if (slug) {
+        // Load existing session by slug
+        console.log('[ChatInterface] Loading session by slug:', slug);
+        const sessionData = await apiService.getSessionBySlug(slug);
+        
+        setSessionId(sessionData.session.id);
+        setCurrentSlug(slug);
+        setIsConnected(true);
+        
+        // Load messages from the session
+        const loadedMessages = sessionData.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+          assessment: msg.role === 'assistant' ? sessionData.session.current_assessment : undefined
+        }));
+        
+        setMessages(loadedMessages);
+        
+        // Load patient data if available
+        if (sessionData.session.patient_data) {
+          setPatientData(sessionData.session.patient_data);
+        }
+        
+        // Update conversation in history
+        const firstUserMessage = sessionData.messages.find((m: any) => m.role === 'user')?.content;
+        if (firstUserMessage) {
+          conversationHistory.updateActivity(slug, sessionData.messages.length);
+        }
+        
+      } else {
+        // Create new session
+        const sessionManager = SessionManager.getInstance();
+        
+        const newSessionId = await sessionManager.getSessionId(async () => {
+          console.log('[ChatInterface] Creating session via API...');
+          return await apiService.createSession();
+        });
+        
+        console.log('[ChatInterface] Session initialized:', newSessionId);
+        setSessionId(newSessionId);
+        setIsConnected(true);
+        
+        // Add welcome message only if we don't already have messages
+        if (messages.length === 0) {
+          const welcomeMessage: Message = {
+            id: 'welcome',
+            role: 'assistant',
+            content: 'Bonjour ! Je suis votre assistant spécialisé en neurologie vétérinaire canine. Pour établir un diagnostic précis, j\'ai besoin des informations suivantes : âge, race, sexe du patient, ainsi qu\'une description détaillée des symptômes neurologiques observés.',
+            timestamp: new Date()
+          };
+          setMessages([welcomeMessage]);
+        }
       }
     } catch (error) {
       console.error('[ChatInterface] Failed to initialize session:', error);
       setIsConnected(false);
     }
-  }, [messages.length]);
+  }, []);
 
   const fetchPatientData = useCallback(async (sessionId: string) => {
     try {
@@ -100,6 +155,33 @@ const ChatInterface: React.FC = () => {
       
       // Fetch updated patient data after each message
       await fetchPatientData(sessionId);
+      
+      // Redirect to slug URL after first message (if not already there)
+      const currentSlugUrl = getSlugFromUrl();
+      if (!currentSlugUrl && messages.length === 1) { // Only welcome message before
+        try {
+          const sessionData = await apiService.getSession(sessionId);
+          if (sessionData.session.slug) {
+            // Save new conversation to history
+            conversationHistory.saveConversation({
+              slug: sessionData.session.slug,
+              sessionId: sessionId,
+              title: conversationHistory.generateTitle(inputMessage),
+              firstMessage: inputMessage,
+              lastActivity: new Date(),
+              messageCount: 2 // User message + assistant response
+            });
+            
+            setCurrentSlug(sessionData.session.slug);
+            window.history.pushState({}, '', `/neuro-vet-assistant/${sessionData.session.slug}`);
+          }
+        } catch (error) {
+          console.error('Failed to get session slug:', error);
+        }
+      } else if (currentSlugUrl) {
+        // Update existing conversation activity
+        conversationHistory.updateActivity(currentSlugUrl, messages.length + 1);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMessage: Message = {
@@ -130,8 +212,15 @@ const ChatInterface: React.FC = () => {
   }, [messages]);
 
   return (
-    <div className="chat-interface">
-      <div className="chat-header">
+    <>
+      <ConversationSidebar
+        currentSlug={currentSlug}
+        onConversationSelect={handleConversationSelect}
+        onNewConversation={handleNewConversation}
+      />
+      
+      <div className="chat-interface main-content">
+        <div className="chat-header">
         <h1>🧠 NeuroVet - Assistant Diagnostique</h1>
         <div className="header-controls">
           <button 
@@ -212,7 +301,8 @@ const ChatInterface: React.FC = () => {
           </button>
         </div>
       </form>
-    </div>
+      </div>
+    </>
   );
 };
 
