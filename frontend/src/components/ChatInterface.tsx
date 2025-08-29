@@ -47,7 +47,7 @@ const ChatInterface: React.FC = () => {
         const welcomeMessage: Message = {
           id: 'welcome',
           role: 'assistant',
-          content: 'Je suis , votre assistant spécialisé en neurologie vétérinaire canine. Décrivez-moi les symptômes neurologiques observés chez votre patient.',
+          content: 'Bonjour ! Je suis votre assistant spécialisé en neurologie vétérinaire canine. Pour établir un diagnostic précis, j\'ai besoin des informations suivantes : âge, race, sexe du patient, ainsi qu\'une description détaillée des symptômes neurologiques observés.',
           timestamp: new Date()
         };
         setMessages([welcomeMessage]);
@@ -199,7 +199,7 @@ const ChatInterface: React.FC = () => {
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Décrivez les symptômes neurologiques observés..."
+            placeholder="Ex: Mon chien Malinois mâle de 3 ans présente des tremblements et troubles de l'équilibre depuis 2 jours..."
             disabled={isLoading || !isConnected}
             className="chat-input"
           />
