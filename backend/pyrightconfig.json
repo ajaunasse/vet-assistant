@@ -1,0 +1,25 @@
+{
+    "include": [
+        "src"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/.venv"
+    ],
+    "extraPaths": [
+        "src"
+    ],
+    "pythonVersion": "3.13",
+    "pythonPlatform": "Darwin",
+    "executionEnvironments": [
+        {
+            "root": "src",
+            "pythonVersion": "3.13",
+            "extraPaths": [
+                "."
+            ]
+        }
+    ],
+    "venvPath": ".",
+    "venv": ".venv"
+}

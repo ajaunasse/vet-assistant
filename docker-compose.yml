@@ -1,0 +1,63 @@
+services:
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: neurovet_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: neurovet_db
+      MYSQL_USER: neurovet
+      MYSQL_PASSWORD: neurovet_pass
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=mysql+aiomysql://neurovet:neurovet_pass@db:3306/neurovet_db
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app
+      # Mount a named volume specifically for the .venv
+      - backend_venv:/app/.venv
+      - backend_data:/app/data
+    working_dir: /app
+    command: uv run uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: neurovet_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: ["npm", "start"]
+
+volumes:
+  mysql_data:
+  backend_data:
+  backend_venv:
