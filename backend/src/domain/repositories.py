@@ -23,6 +23,11 @@ class SessionRepository(ABC):
         """Update an existing session."""
         pass
 
+    @abstractmethod
+    async def get_by_slug(self, slug: str) -> Optional[ChatSession]:
+        """Get a session by slug."""
+        pass
+
 
 class MessageRepository(ABC):
     """Repository interface for chat messages."""

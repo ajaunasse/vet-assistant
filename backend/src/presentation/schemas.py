@@ -65,6 +65,7 @@ class SessionResponse(BaseModel):
     id: str
     created_at: datetime
     updated_at: datetime
+    slug: Optional[str] = None
     current_assessment: Optional[VeterinaryAssessmentResponse] = None
     patient_data: Optional[PatientDataResponse] = None
     is_collecting_data: bool = True

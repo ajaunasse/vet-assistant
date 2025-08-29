@@ -125,6 +125,7 @@ async def create_session(
         id=session.id,
         created_at=session.created_at,
         updated_at=session.updated_at,
+        slug=session.slug,
         current_assessment=None,
         patient_data=patient_data,
         is_collecting_data=session.is_collecting_data,
@@ -192,6 +193,7 @@ async def get_session(
                 id=session.id,
                 created_at=session.created_at,
                 updated_at=session.updated_at,
+                slug=session.slug,
                 current_assessment=current_assessment,
                 patient_data=patient_data,
                 is_collecting_data=session.is_collecting_data,
@@ -245,5 +247,58 @@ async def clear_patient_data(
         await session_repo.update(session)
         
         return {"message": "Patient data cleared successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/sessions/slug/{slug}", response_model=SessionWithMessagesResponse)
+async def get_session_by_slug(
+    slug: str,
+    handler: Annotated[GetSessionHandler, Depends(get_session_handler)],
+) -> SessionWithMessagesResponse:
+    """Get session details by slug with messages."""
+    try:
+        from src.application import GetSessionBySlugQuery
+        session, messages = await handler.handle_by_slug(GetSessionBySlugQuery(slug=slug))
+        
+        # Convert assessment if present
+        current_assessment = None
+        if session.current_assessment:
+            current_assessment = VeterinaryAssessmentResponse(
+                assessment=session.current_assessment.assessment,
+                status=session.current_assessment.status,
+                localization=session.current_assessment.localization,
+                differentials=session.current_assessment.differentials,
+                diagnostics=session.current_assessment.diagnostics,
+                treatment=session.current_assessment.treatment,
+                prognosis=session.current_assessment.prognosis,
+                questions=session.current_assessment.questions,
+                confidence_level=session.current_assessment.confidence_level,
+            )
+
+        patient_data = None
+        if session.patient_data:
+            patient_data = PatientDataResponse(**session.patient_data.to_dict())
+
+        return SessionWithMessagesResponse(
+            session=SessionResponse(
+                id=session.id,
+                created_at=session.created_at,
+                updated_at=session.updated_at,
+                slug=session.slug,
+                current_assessment=current_assessment,
+                patient_data=patient_data,
+                is_collecting_data=session.is_collecting_data,
+            ),
+            messages=[
+                ChatMessageResponse(
+                    id=msg.id,
+                    role=msg.role,
+                    content=msg.content,
+                    timestamp=msg.timestamp,
+                )
+                for msg in messages
+            ],
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

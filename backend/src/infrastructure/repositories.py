@@ -24,6 +24,7 @@ def _session_to_entity(model: SessionModel) -> ChatSession:
         id=model.id,
         created_at=model.created_at,
         updated_at=model.updated_at,
+        slug=model.slug if hasattr(model, 'slug') else None,
         current_assessment=current_assessment,
         openai_thread_id=model.openai_thread_id,
         patient_data=patient_data,
@@ -55,6 +56,7 @@ def _entity_to_session_model(entity: ChatSession) -> SessionModel:
         id=entity.id,
         created_at=entity.created_at,
         updated_at=entity.updated_at,
+        slug=entity.slug,
         current_assessment=current_assessment_dict,
         openai_thread_id=entity.openai_thread_id,
         patient_data=patient_data_dict,
@@ -105,6 +107,13 @@ class SQLSessionRepository(SessionRepository):
         model = result.scalar_one_or_none()
         return _session_to_entity(model) if model else None
 
+    async def get_by_slug(self, slug: str) -> Optional[ChatSession]:
+        """Get a session by slug."""
+        stmt = select(SessionModel).where(SessionModel.slug == slug)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _session_to_entity(model) if model else None
+
     async def update(self, session_entity: ChatSession) -> ChatSession:
         """Update an existing session."""
         stmt = select(SessionModel).where(SessionModel.id == session_entity.id)
@@ -116,6 +125,7 @@ class SQLSessionRepository(SessionRepository):
 
         # Update fields
         model.updated_at = session_entity.updated_at
+        model.slug = session_entity.slug
         model.openai_thread_id = session_entity.openai_thread_id
         model.is_collecting_data = session_entity.is_collecting_data
         

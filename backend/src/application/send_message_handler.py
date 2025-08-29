@@ -26,6 +26,10 @@ class SendMessageHandler:
         if not session:
             raise ValueError(f"Session {command.session_id} not found")
 
+        # Generate slug from first message if not already set
+        if not session.slug:
+            session.generate_slug_from_message(command.message)
+
         # Create and save user message
         user_message = ChatMessage.create_user_message(
             content=command.message,

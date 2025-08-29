@@ -9,7 +9,7 @@ from sqlalchemy.orm import declarative_base, relationship
 
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://neurovet:neurovet_pass@localhost:3306/neurovet_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://neuro_user:NeuroVet2024!@localhost:3306/neurolocalizer")
 
 # Create async engine
 engine = create_async_engine(
@@ -75,6 +75,7 @@ class SessionModel(Base):
     id = Column(String(36), primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    slug = Column(String(100), nullable=True, unique=True, index=True)
     current_assessment = Column(JSON, nullable=True)
     openai_thread_id = Column(String(255), nullable=True)
     patient_data = Column(JSON, nullable=True)

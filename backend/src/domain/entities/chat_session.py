@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from typing import Optional, TYPE_CHECKING
 import uuid
+import re
+import random
 
 if TYPE_CHECKING:
     from .veterinary_assessment import VeterinaryAssessment
@@ -16,12 +18,31 @@ def generate_id() -> str:
     return str(uuid.uuid4())
 
 
+def generate_slug_from_text(text: str) -> str:
+    """Generate a URL-friendly slug from text."""
+    # Remove special characters and normalize
+    text = re.sub(r'[^\w\s-]', '', text.lower())
+    # Replace spaces with hyphens
+    text = re.sub(r'[-\s]+', '-', text)
+    # Limit length and clean edges
+    slug = text[:50].strip('-')
+    
+    # If slug is too short or empty, generate a random one
+    if len(slug) < 3:
+        slug = f"consultation-{random.randint(1000, 9999)}"
+    
+    # Add random suffix to ensure uniqueness
+    suffix = random.randint(100, 999)
+    return f"{slug}-{suffix}"
+
+
 @dataclass
 class ChatSession:
     """Chat session entity with behavior."""
     id: str
     created_at: datetime
     updated_at: datetime
+    slug: Optional[str] = None
     current_assessment: Optional["VeterinaryAssessment"] = None
     openai_thread_id: Optional[str] = None
     patient_data: Optional["PatientData"] = None
@@ -64,3 +85,9 @@ class ChatSession:
         """Start the diagnosis phase."""
         self.is_collecting_data = False
         self.updated_at = datetime.now(UTC)
+    
+    def generate_slug_from_message(self, message: str) -> None:
+        """Generate and set slug from first user message."""
+        if not self.slug:  # Only generate if not already set
+            self.slug = generate_slug_from_text(message)
+            self.updated_at = datetime.now(UTC)
