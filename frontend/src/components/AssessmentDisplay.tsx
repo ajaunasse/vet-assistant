@@ -68,15 +68,13 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
         <p className="main-assessment">{assessment.assessment}</p>
       </div>
 
-      {/* Questions pour la phase de collecte */}
-      {!isCompleted && assessment.questions.length > 0 && (
+      {/* Question pour la phase de collecte */}
+      {!isCompleted && assessment.question && (
         <div className="questions-section">
-          <h4>❓ Questions de suivi</h4>
-          <ul className="questions-list">
-            {assessment.questions.map((question, index) => (
-              <li key={index}>{question}</li>
-            ))}
-          </ul>
+          <h4>❓ Question de suivi</h4>
+          <div className="question-item">
+            <p>{assessment.question}</p>
+          </div>
         </div>
       )}
 

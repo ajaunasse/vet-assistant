@@ -16,7 +16,8 @@ export interface VeterinaryAssessment {
   diagnostics: string[];
   treatment: string;
   prognosis: string;
-  questions: string[];
+  patient_data: string[];
+  question: string;
   confidence_level: 'haute' | 'moyenne' | 'faible';
 }
 

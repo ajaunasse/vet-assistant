@@ -17,9 +17,10 @@ interface PatientData {
 
 interface PatientDataDisplayProps {
   patientData: PatientData;
+  onClose: () => void;
 }
 
-const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) => {
+const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData, onClose }) => {
   if (!patientData || patientData.collected_fields.length === 0) {
     return (
       <div className="patient-data-empty">
@@ -37,18 +38,31 @@ const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) 
   };
 
   return (
-    <div className="patient-data-display">
-      <div className="patient-data-header">
-        <h3>📊 Données Patient Collectées</h3>
-        <div className="completion-badge">
-          {getCompletionPercentage()}% complété
+    <>
+      <div className="patient-data-overlay" onClick={onClose}></div>
+      <div className="patient-data-display">
+        <div className="patient-data-header">
+          <h3>
+            <i className="fas fa-chart-bar"></i>
+            <span>Données Patient Collectées</span>
+          </h3>
+          <div className="header-controls">
+            <div className="completion-badge">
+              {getCompletionPercentage()}% complété
+            </div>
+            <button className="close-btn" onClick={onClose} title="Fermer">
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
         </div>
-      </div>
 
       <div className="patient-data-grid">
         {/* Informations de base */}
         <div className="data-section basic-info">
-          <h4>ℹ️ Informations de base</h4>
+          <h4>
+            <i className="fas fa-info-circle"></i>
+            <span>Informations de base</span>
+          </h4>
           
           {patientData.age && (
             <div className="data-item">
@@ -82,7 +96,10 @@ const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) 
         {/* Symptômes */}
         {patientData.symptoms.length > 0 && (
           <div className="data-section symptoms">
-            <h4>🚨 Symptômes observés</h4>
+            <h4>
+              <i className="fas fa-exclamation-triangle"></i>
+              <span>Symptômes observés</span>
+            </h4>
             <div className="symptoms-list">
               {patientData.symptoms.map((symptom, index) => (
                 <span key={index} className="symptom-tag">
@@ -110,7 +127,10 @@ const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) 
         {/* Antécédents médicaux */}
         {patientData.medical_history.length > 0 && (
           <div className="data-section medical-history">
-            <h4>📋 Antécédents médicaux</h4>
+            <h4>
+              <i className="fas fa-clipboard-list"></i>
+              <span>Antécédents médicaux</span>
+            </h4>
             <ul className="history-list">
               {patientData.medical_history.map((item, index) => (
                 <li key={index}>{item}</li>
@@ -122,7 +142,10 @@ const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) 
         {/* Médicaments actuels */}
         {patientData.current_medications.length > 0 && (
           <div className="data-section medications">
-            <h4>💊 Médicaments actuels</h4>
+            <h4>
+              <i className="fas fa-pills"></i>
+              <span>Médicaments actuels</span>
+            </h4>
             <ul className="medications-list">
               {patientData.current_medications.map((med, index) => (
                 <li key={index}>{med}</li>
@@ -142,12 +165,13 @@ const PatientDataDisplay: React.FC<PatientDataDisplayProps> = ({ patientData }) 
         </div>
         <p className="completion-text">
           {patientData.is_complete 
-            ? "✅ Données complètes pour diagnostic" 
-            : "⏳ Collecte en cours..."
+            ? <><i className="fas fa-check-circle"></i> Données complètes pour diagnostic</>
+            : <><i className="fas fa-hourglass-half"></i> Collecte en cours...</>
           }
         </p>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

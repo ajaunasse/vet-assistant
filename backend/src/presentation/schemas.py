@@ -31,8 +31,23 @@ class VeterinaryAssessmentResponse(BaseModel):
     diagnostics: List[str] = Field(default_factory=list)
     treatment: str = ""
     prognosis: str = ""
-    questions: List[str] = Field(default_factory=list)
+    patient_data: List[str] = Field(default_factory=list)
+    question: str = ""
     confidence_level: str = "moyenne"
+
+
+class PatientDataRequest(BaseModel):
+    """Request schema for patient data from pre-consultation form."""
+    race: str
+    age: str
+    sexe: str  # 'Mâle' or 'Femelle'
+    castre: bool
+    motif_consultation: str
+    premiers_symptomes: str
+    examens_realises: str = ""
+    etat_conscience: str  # 'NSP' | 'Normal' | 'Altéré'
+    comportement: str  # 'NSP' | 'Normal' | 'Compulsif'
+    convulsions: str  # 'Oui' | 'Non' | 'NSP'
 
 
 class PatientDataResponse(BaseModel):
@@ -81,3 +96,18 @@ class HealthResponse(BaseModel):
     """Response schema for health check."""
     status: str
     message: str
+
+
+class DogBreedResponse(BaseModel):
+    """Response schema for dog breed."""
+    id: int
+    name: str
+    created_at: datetime
+
+
+class ConsultationReasonResponse(BaseModel):
+    """Response schema for consultation reason."""
+    id: int
+    name: str
+    description: Optional[str] = None
+    created_at: datetime

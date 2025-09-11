@@ -53,6 +53,10 @@ export const apiService = {
     return response.data;
   },
 
+  async savePatientData(sessionId: string, patientData: any): Promise<void> {
+    await api.post(`/sessions/${sessionId}/patient-data`, patientData);
+  },
+
   async getSession(sessionId: string) {
     const response = await api.get(`/sessions/${sessionId}`);
     return response.data;

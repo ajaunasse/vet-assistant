@@ -37,7 +37,7 @@ class ConversationHistoryService {
   saveConversation(conversation: ConversationSummary): void {
     try {
       const conversations = this.getConversations();
-      const existingIndex = conversations.findIndex(c => c.slug === conversation.slug);
+      const existingIndex = conversations.findIndex(c => c.sessionId === conversation.sessionId);
       
       if (existingIndex >= 0) {
         conversations[existingIndex] = conversation;
@@ -57,7 +57,21 @@ class ConversationHistoryService {
   /**
    * Update conversation activity (when new message sent)
    */
-  updateActivity(slug: string, messageCount: number): void {
+  updateActivity(sessionId: string, messageCount: number): void {
+    const conversations = this.getConversations();
+    const conversation = conversations.find(c => c.sessionId === sessionId);
+    
+    if (conversation) {
+      conversation.lastActivity = new Date();
+      conversation.messageCount = messageCount;
+      this.saveConversation(conversation);
+    }
+  }
+
+  /**
+   * Update conversation activity by slug (legacy support)
+   */
+  updateActivityBySlug(slug: string, messageCount: number): void {
     const conversations = this.getConversations();
     const conversation = conversations.find(c => c.slug === slug);
     
@@ -89,10 +103,10 @@ class ConversationHistoryService {
   /**
    * Remove a conversation from history
    */
-  removeConversation(slug: string): void {
+  removeConversation(sessionId: string): void {
     try {
       const conversations = this.getConversations();
-      const filtered = conversations.filter(c => c.slug !== slug);
+      const filtered = conversations.filter(c => c.sessionId !== sessionId);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
     } catch (error) {
       console.error('Failed to remove conversation:', error);

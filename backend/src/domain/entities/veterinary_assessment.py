@@ -13,7 +13,8 @@ class VeterinaryAssessment:
     diagnostics: List[str] = field(default_factory=list)
     treatment: str = ""
     prognosis: str = ""
-    questions: List[str] = field(default_factory=list)
+    patient_data: List[str] = field(default_factory=list)
+    question: str = ""
     confidence_level: str = "moyenne"
 
     def add_differential(self, condition: str, probability: str, rationale: str) -> None:
@@ -29,7 +30,11 @@ class VeterinaryAssessment:
         if test not in self.diagnostics:
             self.diagnostics.append(test)
 
-    def add_question(self, question: str) -> None:
-        """Add a clarifying question."""
-        if question not in self.questions:
-            self.questions.append(question)
+    def set_question(self, question: str) -> None:
+        """Set the single clarifying question."""
+        self.question = question
+    
+    def add_patient_data(self, data: str) -> None:
+        """Add patient data information."""
+        if data not in self.patient_data:
+            self.patient_data.append(data)

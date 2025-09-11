@@ -14,11 +14,23 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   onNewConversation
 }) => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(window.innerWidth <= 768);
 
   useEffect(() => {
     loadConversations();
-  }, []);
+    
+    // Handle window resize
+    const handleResize = () => {
+      if (window.innerWidth <= 768) {
+        setIsCollapsed(true);
+      } else if (window.innerWidth > 768 && isCollapsed) {
+        setIsCollapsed(false);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isCollapsed]);
 
   const loadConversations = () => {
     const history = conversationHistory.getConversations();
@@ -37,10 +49,10 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
     return date.toLocaleDateString('fr-FR', { month: 'short', day: 'numeric' });
   };
 
-  const handleDeleteConversation = (e: React.MouseEvent, slug: string) => {
+  const handleDeleteConversation = (e: React.MouseEvent, sessionId: string, slug: string) => {
     e.stopPropagation();
     if (window.confirm('Supprimer cette conversation ?')) {
-      conversationHistory.removeConversation(slug);
+      conversationHistory.removeConversation(sessionId);
       loadConversations();
       
       // Redirect to new conversation if current one was deleted
@@ -51,29 +63,31 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
   };
 
   return (
-    <div className={`conversation-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
-      <div className="sidebar-header">
-        <button 
-          className="collapse-btn"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          title={isCollapsed ? 'Ouvrir' : 'Fermer'}
-        >
-          {isCollapsed ? '▶' : '◀'}
-        </button>
-        
-        {!isCollapsed && (
-          <>
-            <h3>Conversations</h3>
-            <button 
-              className="new-conversation-btn"
-              onClick={onNewConversation}
-              title="Nouvelle conversation"
-            >
-              ➕ Nouveau
-            </button>
-          </>
-        )}
-      </div>
+    <>
+      <div className={`conversation-sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+        <div className="sidebar-header">
+          <button 
+            className="collapse-btn"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            title={isCollapsed ? 'Ouvrir' : 'Fermer'}
+          >
+            <i className={`fas ${isCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
+          </button>
+          
+          {!isCollapsed && (
+            <>
+              <h3>Conversations</h3>
+              <button 
+                className="new-conversation-btn"
+                onClick={onNewConversation}
+                title="Nouvelle conversation"
+              >
+                <i className="fas fa-plus"></i>
+                <span>Nouveau</span>
+              </button>
+            </>
+          )}
+        </div>
 
       {!isCollapsed && (
         <div className="conversations-list">
@@ -85,18 +99,18 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
           ) : (
             conversations.map((conv) => (
               <div
-                key={conv.slug}
+                key={conv.sessionId}
                 className={`conversation-item ${conv.slug === currentSlug ? 'active' : ''}`}
-                onClick={() => onConversationSelect(conv.slug)}
+                onClick={() => onConversationSelect(conv.sessionId)}
               >
                 <div className="conversation-header">
                   <span className="conversation-title">{conv.title}</span>
                   <button
                     className="delete-btn"
-                    onClick={(e) => handleDeleteConversation(e, conv.slug)}
+                    onClick={(e) => handleDeleteConversation(e, conv.sessionId, conv.slug)}
                     title="Supprimer"
                   >
-                    🗑️
+                    <i className="fas fa-trash-alt"></i>
                   </button>
                 </div>
                 
@@ -116,8 +130,15 @@ const ConversationSidebar: React.FC<ConversationSidebarProps> = ({
             ))
           )}
         </div>
-      )}
-    </div>
+        )}
+      </div>
+      
+      {/* Overlay for mobile */}
+      <div 
+        className={`sidebar-overlay ${!isCollapsed ? 'show' : ''}`}
+        onClick={() => setIsCollapsed(true)}
+      />
+    </>
   );
 };
 

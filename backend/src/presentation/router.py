@@ -1,6 +1,6 @@
 """FastAPI router for the NeuroVet API."""
 import os
-from typing import Annotated
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,17 +17,20 @@ from src.application import (
 )
 from src.domain.entities import VeterinaryAssessment, CollectionResponse as DomainCollectionResponse
 from src.infrastructure.database import get_database_session
-from src.infrastructure import SQLSessionRepository, SQLMessageRepository, AIService
+from src.infrastructure import SQLSessionRepository, SQLMessageRepository, SQLDogBreedRepository, SQLConsultationReasonRepository, AIService
 
 from .schemas import (
     SendMessageRequest,
     VeterinaryAssessmentResponse,
     CollectionResponse,
     PatientDataResponse,
+    PatientDataRequest,
     SessionResponse,
     SessionWithMessagesResponse,
     ChatMessageResponse,
     HealthResponse,
+    DogBreedResponse,
+    ConsultationReasonResponse,
 )
 
 
@@ -99,6 +102,20 @@ def get_session_messages_handler(
     return GetSessionMessagesHandler(message_repo)
 
 
+def get_dog_breed_repository(
+    db_session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> SQLDogBreedRepository:
+    """Get dog breed repository."""
+    return SQLDogBreedRepository(db_session)
+
+
+def get_consultation_reason_repository(
+    db_session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> SQLConsultationReasonRepository:
+    """Get consultation reason repository."""
+    return SQLConsultationReasonRepository(db_session)
+
+
 # API Endpoints
 @router.get("/health", response_model=HealthResponse)
 async def health_check() -> HealthResponse:
@@ -151,7 +168,8 @@ async def send_message(
             diagnostics=assessment.diagnostics,
             treatment=assessment.treatment,
             prognosis=assessment.prognosis,
-            questions=assessment.questions,
+            patient_data=assessment.patient_data,
+            question=assessment.question,
             confidence_level=assessment.confidence_level,
         )
     except ValueError as e:
@@ -180,7 +198,8 @@ async def get_session(
                 diagnostics=session.current_assessment.diagnostics,
                 treatment=session.current_assessment.treatment,
                 prognosis=session.current_assessment.prognosis,
-                questions=session.current_assessment.questions,
+                patient_data=getattr(session.current_assessment, 'patient_data', []),
+                question=getattr(session.current_assessment, 'question', ''),
                 confidence_level=session.current_assessment.confidence_level,
             )
 
@@ -229,6 +248,59 @@ async def get_patient_data(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.post("/sessions/{session_id}/patient-data", response_model=PatientDataResponse)
+async def save_patient_data(
+    session_id: str,
+    request: PatientDataRequest,
+    db_session: Annotated[AsyncSession, Depends(get_database_session)],
+) -> PatientDataResponse:
+    """Save patient data from pre-consultation form."""
+    try:
+        session_repo = SQLSessionRepository(db_session)
+        session = await session_repo.get_by_id(session_id)
+        if not session:
+            raise ValueError(f"Session with id '{session_id}' not found")
+        
+        # Initialize patient data if not exists
+        if not session.patient_data:
+            from src.domain.entities import PatientData
+            session.patient_data = PatientData()
+        
+        # Convert form data to patient data structure
+        sex_str = f"{request.sexe.lower()} {'castré' if request.castre and request.sexe.lower() == 'mâle' else 'stérilisé' if request.castre and request.sexe.lower() == 'femelle' else 'entier' if not request.castre else ''}"
+        
+        session.patient_data.set_basic_info(
+            race=request.race,
+            age=request.age,
+            sex=sex_str
+        )
+        
+        # Add symptoms and examination data
+        if request.premiers_symptomes:
+            session.patient_data.add_symptom(f"Premiers symptômes: {request.premiers_symptomes}")
+        
+        if request.examens_realises:
+            session.patient_data.add_exam_result("examens_realises", request.examens_realises)
+        
+        # Add neurological exam data
+        session.patient_data.add_exam_result("neuro_etat_conscience", request.etat_conscience)
+        session.patient_data.add_exam_result("neuro_comportement", request.comportement)
+        session.patient_data.add_exam_result("neuro_convulsions", request.convulsions)
+        session.patient_data.add_exam_result("motif_consultation", request.motif_consultation)
+        
+        # Mark session as updated
+        session.update_patient_data(session.patient_data)
+        
+        # Save to database
+        await session_repo.update(session)
+        
+        return PatientDataResponse(**session.patient_data.to_dict())
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
 @router.delete("/sessions/{session_id}/patient-data")
 async def clear_patient_data(
     session_id: str,
@@ -249,6 +321,45 @@ async def clear_patient_data(
         return {"message": "Patient data cleared successfully"}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get("/dog-breeds", response_model=List[DogBreedResponse])
+async def get_dog_breeds(
+    dog_breed_repo: Annotated[SQLDogBreedRepository, Depends(get_dog_breed_repository)],
+) -> List[DogBreedResponse]:
+    """Get all dog breeds."""
+    try:
+        breeds = await dog_breed_repo.get_all()
+        return [
+            DogBreedResponse(
+                id=breed.id,
+                name=breed.name,
+                created_at=breed.created_at,
+            )
+            for breed in breeds
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get("/consultation-reasons", response_model=List[ConsultationReasonResponse])
+async def get_consultation_reasons(
+    consultation_reason_repo: Annotated[SQLConsultationReasonRepository, Depends(get_consultation_reason_repository)],
+) -> List[ConsultationReasonResponse]:
+    """Get all consultation reasons."""
+    try:
+        reasons = await consultation_reason_repo.get_all()
+        return [
+            ConsultationReasonResponse(
+                id=reason.id,
+                name=reason.name,
+                description=reason.description,
+                created_at=reason.created_at,
+            )
+            for reason in reasons
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/sessions/slug/{slug}", response_model=SessionWithMessagesResponse)
@@ -272,7 +383,8 @@ async def get_session_by_slug(
                 diagnostics=session.current_assessment.diagnostics,
                 treatment=session.current_assessment.treatment,
                 prognosis=session.current_assessment.prognosis,
-                questions=session.current_assessment.questions,
+                patient_data=getattr(session.current_assessment, 'patient_data', []),
+                question=getattr(session.current_assessment, 'question', ''),
                 confidence_level=session.current_assessment.confidence_level,
             )
 

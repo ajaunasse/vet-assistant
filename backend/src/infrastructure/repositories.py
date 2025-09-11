@@ -4,17 +4,32 @@ from typing import List, Optional
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment, PatientData
-from src.domain.repositories import SessionRepository, MessageRepository
+from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment, PatientData, DogBreed, ConsultationReason
+from src.domain.repositories import SessionRepository, MessageRepository, DogBreedRepository, ConsultationReasonRepository
 
-from .database import SessionModel, MessageModel
+from .database import SessionModel, MessageModel, DogBreedModel, ConsultationReasonModel
 
 
 def _session_to_entity(model: SessionModel) -> ChatSession:
     """Convert session model to entity."""
     current_assessment = None
     if model.current_assessment:
-        current_assessment = VeterinaryAssessment(**model.current_assessment)
+        # Handle backward compatibility for field name changes
+        assessment_data = dict(model.current_assessment)
+        
+        # Convert old 'questions' field to new 'question' field if exists
+        if 'questions' in assessment_data:
+            if isinstance(assessment_data['questions'], list) and assessment_data['questions']:
+                assessment_data['question'] = assessment_data['questions'][0]  # Take first question
+            else:
+                assessment_data['question'] = ""
+            del assessment_data['questions']
+        
+        # Ensure required fields have default values
+        assessment_data.setdefault('question', "")
+        assessment_data.setdefault('patient_data', [])
+        
+        current_assessment = VeterinaryAssessment(**assessment_data)
     
     patient_data = None
     if model.patient_data:
@@ -44,7 +59,8 @@ def _entity_to_session_model(entity: ChatSession) -> SessionModel:
             "diagnostics": entity.current_assessment.diagnostics,
             "treatment": entity.current_assessment.treatment,
             "prognosis": entity.current_assessment.prognosis,
-            "questions": entity.current_assessment.questions,
+            "question": entity.current_assessment.question,
+            "patient_data": entity.current_assessment.patient_data,
             "confidence_level": entity.current_assessment.confidence_level,
         }
 
@@ -138,7 +154,8 @@ class SQLSessionRepository(SessionRepository):
                 "diagnostics": session_entity.current_assessment.diagnostics,
                 "treatment": session_entity.current_assessment.treatment,
                 "prognosis": session_entity.current_assessment.prognosis,
-                "questions": session_entity.current_assessment.questions,
+                "question": session_entity.current_assessment.question,
+                "patient_data": session_entity.current_assessment.patient_data,
                 "confidence_level": session_entity.current_assessment.confidence_level,
             }
         
@@ -187,3 +204,78 @@ class SQLMessageRepository(MessageRepository):
         models = result.scalars().all()
         # Reverse to get chronological order
         return [_message_to_entity(model) for model in reversed(models)]
+
+
+def _dog_breed_to_entity(model: DogBreedModel) -> DogBreed:
+    """Convert dog breed model to entity."""
+    return DogBreed(
+        id=model.id,
+        name=model.name,
+        created_at=model.created_at,
+    )
+
+
+def _consultation_reason_to_entity(model: ConsultationReasonModel) -> ConsultationReason:
+    """Convert consultation reason model to entity."""
+    return ConsultationReason(
+        id=model.id,
+        name=model.name,
+        description=model.description,
+        created_at=model.created_at,
+    )
+
+
+class SQLDogBreedRepository(DogBreedRepository):
+    """SQLAlchemy implementation of DogBreedRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_all(self) -> List[DogBreed]:
+        """Get all dog breeds."""
+        stmt = select(DogBreedModel).order_by(DogBreedModel.name)
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [_dog_breed_to_entity(model) for model in models]
+
+    async def get_by_id(self, breed_id: int) -> Optional[DogBreed]:
+        """Get a dog breed by ID."""
+        stmt = select(DogBreedModel).where(DogBreedModel.id == breed_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _dog_breed_to_entity(model) if model else None
+
+    async def get_by_name(self, name: str) -> Optional[DogBreed]:
+        """Get a dog breed by name."""
+        stmt = select(DogBreedModel).where(DogBreedModel.name == name)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _dog_breed_to_entity(model) if model else None
+
+
+class SQLConsultationReasonRepository(ConsultationReasonRepository):
+    """SQLAlchemy implementation of ConsultationReasonRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_all(self) -> List[ConsultationReason]:
+        """Get all consultation reasons."""
+        stmt = select(ConsultationReasonModel).order_by(ConsultationReasonModel.name)
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [_consultation_reason_to_entity(model) for model in models]
+
+    async def get_by_id(self, reason_id: int) -> Optional[ConsultationReason]:
+        """Get a consultation reason by ID."""
+        stmt = select(ConsultationReasonModel).where(ConsultationReasonModel.id == reason_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _consultation_reason_to_entity(model) if model else None
+
+    async def get_by_name(self, name: str) -> Optional[ConsultationReason]:
+        """Get a consultation reason by name."""
+        stmt = select(ConsultationReasonModel).where(ConsultationReasonModel.name == name)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _consultation_reason_to_entity(model) if model else None

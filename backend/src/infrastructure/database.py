@@ -3,7 +3,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, func
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, Integer, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -97,6 +97,25 @@ class MessageModel(Base):
 
     # Relationships
     session = relationship("SessionModel", back_populates="messages")
+
+
+class DogBreedModel(Base):
+    """SQLAlchemy model for dog breeds."""
+    __tablename__ = "dog_breeds"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConsultationReasonModel(Base):
+    """SQLAlchemy model for consultation reasons."""
+    __tablename__ = "consultation_reasons"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # Global database instance
