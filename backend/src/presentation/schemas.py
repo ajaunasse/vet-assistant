@@ -22,6 +22,17 @@ class CollectionResponse(BaseModel):
     confidence_level: str = "medium"
 
 
+class PatientDataAI(BaseModel):
+    """Schema for patient data from AI response."""
+    race: Optional[str] = None
+    age: Optional[str] = None
+    sexe: Optional[str] = None
+    symptomes: List[str] = Field(default_factory=list)
+    examens: List[str] = Field(default_factory=list)
+    historique: Optional[str] = None
+    traitement_actuel: Optional[str] = None
+
+
 class VeterinaryAssessmentResponse(BaseModel):
     """Response schema for veterinary assessment."""
     assessment: str
@@ -31,7 +42,7 @@ class VeterinaryAssessmentResponse(BaseModel):
     diagnostics: List[str] = Field(default_factory=list)
     treatment: str = ""
     prognosis: str = ""
-    patient_data: List[str] = Field(default_factory=list)
+    patient_data: Optional[PatientDataAI] = None
     question: str = ""
     confidence_level: str = "moyenne"
 

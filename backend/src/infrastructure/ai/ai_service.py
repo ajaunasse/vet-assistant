@@ -1,7 +1,7 @@
 """AI service for veterinary neurological diagnostics using OpenAI Assistant API."""
 import asyncio
 import json
-from typing import List
+from typing import List, Dict, Any
 import openai
 
 from src.domain.entities import ChatMessage, VeterinaryAssessment, PatientData
@@ -14,7 +14,7 @@ class AIService:
         self,
         api_key: str,
         assistant_id: str,
-        model: str = "gpt-4-turbo-preview",
+        model: str = "gpt-4.1",
         temperature: float = 0.3,
         max_tokens: int = 2000,
     ):
@@ -130,17 +130,48 @@ class AIService:
         
         return thread_id
 
-    async def _process_ai_patient_data(self, ai_patient_data: List[str], session) -> None:
+    async def _process_ai_patient_data(self, ai_patient_data: dict, session) -> None:
         """Process patient data from AI response and update session."""
+        if not ai_patient_data:
+            return
+
         # Initialize patient data if not exists
         if not session.patient_data:
             session.patient_data = PatientData()
-        
-        # Simply store the AI patient data as text - the AI handles the structure
-        # Update the session with this information
+
+        # Update basic info
+        if ai_patient_data.get('race'):
+            session.patient_data.race = ai_patient_data['race']
+        if ai_patient_data.get('age'):
+            session.patient_data.age = ai_patient_data['age']
+        if ai_patient_data.get('sexe'):
+            session.patient_data.sex = ai_patient_data['sexe']
+
+        # Add symptoms (avoid duplicates)
+        existing_symptoms = set(session.patient_data.symptoms)
+        for symptom in ai_patient_data.get('symptomes', []):
+            if symptom and symptom not in existing_symptoms:
+                session.patient_data.add_symptom(symptom)
+
+        # Add exam results (avoid duplicates)
+        for exam in ai_patient_data.get('examens', []):
+            if exam:
+                session.patient_data.add_exam_result('ai_exam', exam)
+
+        # Add history
+        if ai_patient_data.get('historique'):
+            session.patient_data.add_exam_result('historique', ai_patient_data['historique'])
+
+        # Add current treatment
+        if ai_patient_data.get('traitement_actuel'):
+            session.patient_data.add_exam_result('traitement_actuel', ai_patient_data['traitement_actuel'])
+
+        # Update session
         session.update_patient_data(session.patient_data)
-        
-        print(f"[DEBUG] Processed AI patient data: {ai_patient_data}")
+
+        print(f"[DEBUG] Processed AI patient data: race={ai_patient_data.get('race')}, "
+              f"symptoms_count={len(ai_patient_data.get('symptomes', []))}, "
+              f"exams_count={len(ai_patient_data.get('examens', []))}")
 
     def _format_patient_data_for_ai(self, patient_data: PatientData) -> str:
         """Format patient data for AI context."""

@@ -1,0 +1,132 @@
+{
+  "name": "neuro_assessment",
+  "strict": false,
+  "schema": {
+    "type": "object",
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": [
+          "processed",
+          "completed"
+        ],
+        "description": "Statut de l'évaluation: processed (collecte) ou completed (diagnostic final)"
+      },
+      "assessment": {
+        "type": "string",
+        "description": "Résumé de l'évaluation neurologique"
+      },
+      "localization": {
+        "type": "string",
+        "description": "Localisation neuroanatomique précise (cerveau, tronc cérébral, cervelet, moelle épinière, nerfs périphériques)"
+      },
+      "differentials": {
+        "type": "array",
+        "description": "Liste des diagnostics différentiels hiérarchisés avec explications",
+        "items": {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "type": "string",
+              "description": "Nom de la condition/pathologie"
+            },
+            "probability": {
+              "type": "string",
+              "enum": [
+                "haute",
+                "moyenne",
+                "faible"
+              ],
+              "description": "Probabilité de cette condition"
+            },
+            "rationale": {
+              "type": "string",
+              "description": "Justification pour cette condition"
+            }
+          },
+          "required": [
+            "condition",
+            "probability",
+            "rationale"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "diagnostics": {
+        "type": "array",
+        "description": "Examens ou tests diagnostiques recommandés",
+        "items": {
+          "type": "string"
+        }
+      },
+      "treatment": {
+        "type": "string",
+        "description": "Recommandations thérapeutiques détaillées"
+      },
+      "prognosis": {
+        "type": "string",
+        "description": "Pronostic réaliste basé sur les informations disponibles"
+      },
+      "patient_data": {
+        "type": "object",
+        "description": "Données patient extraites et mémorisées de la conversation",
+        "properties": {
+          "race": {
+            "type": "string",
+            "description": "Race du chien"
+          },
+          "age": {
+            "type": "string",
+            "description": "Âge du chien (ex: '7 ans', '5 mois')"
+          },
+          "sexe": {
+            "type": "string",
+            "description": "Sexe et statut de castration (ex: 'mâle castré', 'femelle entière')"
+          },
+          "symptomes": {
+            "type": "array",
+            "description": "Liste des symptômes observés",
+            "items": {
+              "type": "string"
+            }
+          },
+          "examens": {
+            "type": "array",
+            "description": "Résultats des examens neurologiques et complémentaires",
+            "items": {
+              "type": "string"
+            }
+          },
+          "historique": {
+            "type": "string",
+            "description": "Contexte, évolution temporelle, événements déclencheurs"
+          },
+          "traitement_actuel": {
+            "type": "string",
+            "description": "Traitement en cours si applicable"
+          }
+        },
+        "additionalProperties": false
+      },
+      "question": {
+        "type": "string",
+        "description": "Question de suivi pour collecter plus d'informations (principalement en phase 'processed')"
+      },
+      "confidence_level": {
+        "type": "string",
+        "enum": [
+          "haute",
+          "moyenne",
+          "faible"
+        ],
+        "description": "Niveau de confiance du diagnostic"
+      }
+    },
+    "required": [
+      "status",
+      "assessment",
+      "patient_data"
+    ],
+    "additionalProperties": false
+  }
+}
