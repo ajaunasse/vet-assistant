@@ -1,6 +1,8 @@
-# Guide de Déploiement - NeuroVet sur Hetzner
+# Guide de Déploiement - NeuroVet sur Hetzner (Version Simplifiée)
 
-Ce guide décrit le déploiement complet de NeuroVet sur un serveur Hetzner.
+Ce guide décrit le déploiement simplifié de NeuroVet sur un serveur Hetzner en mode root.
+
+> **Note**: Cette configuration est adaptée pour un serveur de développement/test. Pour une production critique, considérez la création d'un utilisateur dédié (voir version complète).
 
 ## Architecture de Déploiement
 
@@ -27,10 +29,9 @@ Docker Compose
 - Domaine configuré (ex: `neurovet.votredomaine.com`)
 - Enregistrements DNS pointant vers votre serveur :
   - `A` record : `neurovet.votredomaine.com` → IP_DU_SERVEUR
-  - `A` record (optionnel) : `api.neurovet.votredomaine.com` → IP_DU_SERVEUR
 
 ### Autres
-- Clé SSH pour accès sécurisé
+- Clé SSH configurée pour accès root
 - Clé API OpenAI
 - ID de l'assistant OpenAI configuré
 
@@ -50,40 +51,99 @@ ssh root@VOTRE_IP_SERVEUR
 apt update && apt upgrade -y
 ```
 
-### 1.3 Créer un Utilisateur Non-Root
+### 1.3 Sécurisation SSH (Clés SSH uniquement)
+
+**Important** : Assurez-vous d'avoir votre clé SSH fonctionnelle avant de désactiver l'authentification par mot de passe !
 
 ```bash
-# Créer utilisateur
-adduser neurovet
+# Vérifier que votre clé SSH fonctionne
+cat ~/.ssh/authorized_keys
 
-# Ajouter aux sudoers
-usermod -aG sudo neurovet
-
-# Copier les clés SSH
-rsync --archive --chown=neurovet:neurovet ~/.ssh /home/neurovet
-
-# Se connecter avec le nouvel utilisateur
-su - neurovet
+# Éditer la configuration SSH
+nano /etc/ssh/sshd_config
 ```
 
-### 1.4 Configuration du Firewall
+**Modifiez ces lignes** :
+```
+# Désactiver l'authentification par mot de passe
+PasswordAuthentication no
+PubkeyAuthentication yes
+
+# Désactiver root login par mot de passe (mais autoriser par clé)
+PermitRootLogin prohibit-password
+
+# Désactiver l'authentification vide
+PermitEmptyPasswords no
+
+# Désactiver le challenge-response
+ChallengeResponseAuthentication no
+```
+
+```bash
+# Redémarrer SSH
+systemctl restart sshd
+
+# ⚠️ NE FERMEZ PAS votre session actuelle !
+# Testez dans un NOUVEAU terminal :
+ssh root@VOTRE_IP_SERVEUR
+```
+
+### 1.4 Installation de Fail2Ban
+
+```bash
+# Installer Fail2Ban
+apt install fail2ban -y
+
+# Créer la configuration locale
+cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+
+# Éditer la configuration
+nano /etc/fail2ban/jail.local
+```
+
+**Configuration minimale** (section `[sshd]`) :
+```ini
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 3600
+findtime = 600
+```
+
+```bash
+# Démarrer et activer Fail2Ban
+systemctl enable fail2ban
+systemctl start fail2ban
+
+# Vérifier le statut
+fail2ban-client status
+fail2ban-client status sshd
+```
+
+### 1.5 Configuration du Firewall
 
 ```bash
 # Installer UFW
-sudo apt install ufw -y
+apt install ufw -y
 
 # Configurer les règles
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow http
-sudo ufw allow https
+ufw default deny incoming
+ufw default allow outgoing
+ufw allow ssh
+ufw allow http
+ufw allow https
+
+# ⚠️ Important : vérifiez que SSH est autorisé avant d'activer !
+ufw --dry-run enable  # Test sans activer
 
 # Activer le firewall
-sudo ufw enable
+ufw enable
 
 # Vérifier le statut
-sudo ufw status
+ufw status verbose
 ```
 
 ---
@@ -94,36 +154,31 @@ sudo ufw status
 
 ```bash
 # Installer les dépendances
-sudo apt install apt-transport-https ca-certificates curl software-properties-common -y
+apt install apt-transport-https ca-certificates curl software-properties-common -y
 
 # Ajouter la clé GPG Docker
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
 
 # Ajouter le repository Docker
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 # Installer Docker
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io -y
-
-# Ajouter l'utilisateur au groupe docker
-sudo usermod -aG docker $USER
-
-# Appliquer les changements (ou se déconnecter/reconnecter)
-newgrp docker
+apt update
+apt install docker-ce docker-ce-cli containerd.io -y
 
 # Vérifier l'installation
 docker --version
+docker run hello-world
 ```
 
 ### 2.2 Installation de Docker Compose
 
 ```bash
 # Télécharger Docker Compose
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 
 # Rendre exécutable
-sudo chmod +x /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
 
 # Vérifier l'installation
 docker-compose --version
@@ -137,11 +192,11 @@ docker-compose --version
 
 ```bash
 # Installer git si nécessaire
-sudo apt install git -y
+apt install git -y
 
 # Créer le dossier de déploiement
-mkdir -p ~/apps
-cd ~/apps
+mkdir -p /opt/apps
+cd /opt/apps
 
 # Cloner le repository
 git clone https://github.com/VOTRE_USERNAME/neurolocalizer-v2.git
@@ -152,13 +207,13 @@ cd neurolocalizer-v2
 
 ```bash
 # Copier le fichier d'exemple
-cp .env.example .env
+cp .env.production.example .env
 
 # Éditer le fichier .env
 nano .env
 ```
 
-**Contenu du `.env` de production** :
+**Contenu du `.env` minimal** :
 
 ```env
 # OpenAI Configuration
@@ -174,11 +229,14 @@ DATABASE_URL=mysql+aiomysql://neurovet:VOTRE_MOT_DE_PASSE_SECURISE@db:3306/neuro
 # Application Settings
 SQL_ECHO=false
 
-# Frontend (si nécessaire)
+# Frontend
 REACT_APP_API_URL=https://neurovet.votredomaine.com
 ```
 
-**⚠️ IMPORTANT** : Changez le mot de passe MySQL !
+**Générer un mot de passe sécurisé** :
+```bash
+openssl rand -base64 32
+```
 
 ### 3.3 Modifier docker-compose.yml pour Production
 
@@ -195,7 +253,7 @@ services:
       MYSQL_ROOT_PASSWORD: VOTRE_MOT_DE_PASSE_ROOT_SECURISE
       MYSQL_DATABASE: neurovet_db
       MYSQL_USER: neurovet
-      MYSQL_PASSWORD: VOTRE_MOT_DE_PASSE_SECURISE
+      MYSQL_PASSWORD: VOTRE_MOT_DE_PASSE_SECURISE  # Même que dans .env
 ```
 
 ### 3.4 Build et Lancement des Services
@@ -221,13 +279,10 @@ docker-compose logs -f
 sleep 30
 
 # Lancer les migrations
-make migrate-up
-
-# Ou manuellement
 docker-compose exec backend uv run alembic upgrade head
 
 # Vérifier la base de données
-make db-check
+docker-compose exec backend uv run python -c "from src.infrastructure.database import database; print('DB OK')"
 ```
 
 ---
@@ -237,16 +292,16 @@ make db-check
 ### 4.1 Installation de Nginx
 
 ```bash
-sudo apt install nginx -y
+apt install nginx -y
 ```
 
 ### 4.2 Configuration du Site
 
 ```bash
-sudo nano /etc/nginx/sites-available/neurovet
+nano /etc/nginx/sites-available/neurovet
 ```
 
-**Contenu du fichier** :
+**Contenu du fichier** (remplacez `neurovet.votredomaine.com` par votre domaine) :
 
 ```nginx
 # Configuration HTTP (temporaire, avant SSL)
@@ -280,7 +335,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # Timeouts pour les requêtes AI (peuvent être longues)
+        # Timeouts pour les requêtes AI
         proxy_connect_timeout 300s;
         proxy_send_timeout 300s;
         proxy_read_timeout 300s;
@@ -298,19 +353,19 @@ server {
 
 ```bash
 # Créer le lien symbolique
-sudo ln -s /etc/nginx/sites-available/neurovet /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/neurovet /etc/nginx/sites-enabled/
 
 # Supprimer le site par défaut
-sudo rm /etc/nginx/sites-enabled/default
+rm /etc/nginx/sites-enabled/default
 
 # Tester la configuration
-sudo nginx -t
+nginx -t
 
 # Redémarrer Nginx
-sudo systemctl restart nginx
+systemctl restart nginx
 
 # Vérifier le statut
-sudo systemctl status nginx
+systemctl status nginx
 ```
 
 ---
@@ -320,14 +375,14 @@ sudo systemctl status nginx
 ### 5.1 Installation de Certbot
 
 ```bash
-sudo apt install certbot python3-certbot-nginx -y
+apt install certbot python3-certbot-nginx -y
 ```
 
 ### 5.2 Obtenir le Certificat SSL
 
 ```bash
 # Obtenir et installer le certificat
-sudo certbot --nginx -d neurovet.votredomaine.com
+certbot --nginx -d neurovet.votredomaine.com
 
 # Suivre les instructions interactives
 # - Entrer votre email
@@ -339,21 +394,21 @@ sudo certbot --nginx -d neurovet.votredomaine.com
 
 ```bash
 # Tester le renouvellement
-sudo certbot renew --dry-run
+certbot renew --dry-run
 
 # Le renouvellement automatique est configuré via systemd timer
-sudo systemctl status certbot.timer
+systemctl status certbot.timer
 ```
 
-### 5.4 Configuration Nginx Finale (Après SSL)
-
-Le fichier sera automatiquement modifié par Certbot. Vérifiez :
+### 5.4 Vérifier la Configuration
 
 ```bash
-sudo nano /etc/nginx/sites-available/neurovet
-```
+# Tester HTTPS
+curl -I https://neurovet.votredomaine.com
 
-Il devrait maintenant avoir une section HTTPS sur le port 443.
+# Vérifier les certificats
+certbot certificates
+```
 
 ---
 
@@ -376,10 +431,10 @@ docker-compose logs --tail=100 -f backend
 
 ```bash
 # Access logs
-sudo tail -f /var/log/nginx/neurovet_access.log
+tail -f /var/log/nginx/neurovet_access.log
 
 # Error logs
-sudo tail -f /var/log/nginx/neurovet_error.log
+tail -f /var/log/nginx/neurovet_error.log
 ```
 
 ### 6.3 Monitoring des Ressources
@@ -395,146 +450,106 @@ df -h
 free -h
 
 # Processus
-htop  # (installer avec: sudo apt install htop)
+apt install htop -y
+htop
+```
+
+### 6.4 Script de Health Check
+
+```bash
+cd /opt/apps/neurolocalizer-v2
+
+# Vérifier l'état de l'application
+./scripts/health-check.sh neurovet.votredomaine.com
 ```
 
 ---
 
 ## 💾 Étape 7 : Backup de la Base de Données
 
-### 7.1 Script de Backup Automatique
+### 7.1 Backup Manuel
 
 ```bash
-# Créer le dossier de backups
-mkdir -p ~/backups
+cd /opt/apps/neurolocalizer-v2
 
-# Créer le script de backup
-nano ~/backups/backup-db.sh
-```
-
-**Contenu du script** :
-
-```bash
-#!/bin/bash
-
-# Configuration
-BACKUP_DIR="/home/neurovet/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="neurovet_backup_$DATE.sql"
-MYSQL_PASSWORD="VOTRE_MOT_DE_PASSE_SECURISE"
-
-# Créer le backup
-cd /home/neurovet/apps/neurolocalizer-v2
-docker-compose exec -T db mysqldump -u neurovet -p$MYSQL_PASSWORD neurovet_db > $BACKUP_DIR/$BACKUP_FILE
-
-# Compresser
-gzip $BACKUP_DIR/$BACKUP_FILE
-
-# Garder seulement les 7 derniers backups
-find $BACKUP_DIR -name "neurovet_backup_*.sql.gz" -mtime +7 -delete
-
-echo "Backup créé : $BACKUP_FILE.gz"
-```
-
-```bash
-# Rendre exécutable
-chmod +x ~/backups/backup-db.sh
-
-# Tester le script
-~/backups/backup-db.sh
+# Exécuter le backup
+./scripts/backup-db.sh
 ```
 
 ### 7.2 Automatiser avec Cron
 
 ```bash
-# Éditer crontab
+# Éditer crontab root
 crontab -e
 
 # Ajouter cette ligne pour backup quotidien à 2h du matin
-0 2 * * * /home/neurovet/backups/backup-db.sh >> /home/neurovet/backups/backup.log 2>&1
+0 2 * * * /opt/apps/neurolocalizer-v2/scripts/backup-db.sh >> /var/log/neurovet-backup.log 2>&1
 ```
 
 ### 7.3 Restaurer un Backup
 
 ```bash
-# Décompresser le backup
-gunzip ~/backups/neurovet_backup_YYYYMMDD_HHMMSS.sql.gz
+cd /opt/apps/neurolocalizer-v2
 
-# Restaurer dans la base de données
-cd ~/apps/neurolocalizer-v2
-docker-compose exec -T db mysql -u neurovet -pVOTRE_MOT_DE_PASSE neurovet_db < ~/backups/neurovet_backup_YYYYMMDD_HHMMSS.sql
+# Restaurer depuis un backup
+./scripts/restore-db.sh /root/backups/neurovet_backup_YYYYMMDD_HHMMSS.sql.gz
 ```
 
 ---
 
 ## 🔄 Étape 8 : Mise à Jour de l'Application
 
-### 8.1 Script de Mise à Jour
+### 8.1 Mise à Jour Simple
 
 ```bash
-# Créer le script
-nano ~/update-neurovet.sh
-```
+cd /opt/apps/neurolocalizer-v2
 
-**Contenu du script** :
-
-```bash
-#!/bin/bash
-
-cd /home/neurovet/apps/neurolocalizer-v2
-
-echo "📥 Pulling latest changes..."
-git pull origin main
-
-echo "🛑 Stopping services..."
-docker-compose down
-
-echo "🔨 Building new images..."
-docker-compose build
-
-echo "🚀 Starting services..."
-docker-compose up -d
-
-echo "⏳ Waiting for database..."
-sleep 10
-
-echo "🔄 Running migrations..."
-docker-compose exec backend uv run alembic upgrade head
-
-echo "✅ Update complete!"
-docker-compose ps
-```
-
-```bash
-# Rendre exécutable
-chmod +x ~/update-neurovet.sh
-```
-
-### 8.2 Mettre à Jour
-
-```bash
-# Exécuter le script
-~/update-neurovet.sh
+# Exécuter le script de mise à jour
+./scripts/update-app.sh
 
 # Vérifier les logs
-cd ~/apps/neurolocalizer-v2
 docker-compose logs -f
+```
+
+### 8.2 Mise à Jour Manuelle
+
+```bash
+cd /opt/apps/neurolocalizer-v2
+
+# Pull les changements
+git pull origin main
+
+# Rebuild et redémarrer
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+# Migrations
+docker-compose exec backend uv run alembic upgrade head
 ```
 
 ---
 
 ## 🔧 Étape 9 : Maintenance
 
-### 9.1 Redémarrage des Services
+### 9.1 Commandes Utiles
 
 ```bash
-cd ~/apps/neurolocalizer-v2
-
 # Redémarrer tous les services
 docker-compose restart
 
 # Redémarrer un service spécifique
 docker-compose restart backend
+
+# Voir les logs en temps réel
+docker-compose logs -f backend
+
+# Accéder à un conteneur
+docker-compose exec backend bash
+docker-compose exec db mysql -u neurovet -p
+
+# Vérifier l'utilisation des ressources
+docker stats
 ```
 
 ### 9.2 Nettoyage Docker
@@ -543,21 +558,21 @@ docker-compose restart backend
 # Supprimer les images inutilisées
 docker image prune -a
 
-# Supprimer les volumes inutilisés
-docker volume prune
-
-# Nettoyage complet
-docker system prune -a --volumes
+# Nettoyage complet (attention aux volumes)
+docker system prune -a
 ```
 
-### 9.3 Vérification de Santé
+### 9.3 Vérification Fail2Ban
 
 ```bash
-# Test endpoint health
-curl https://neurovet.votredomaine.com/api/v1/health
+# Voir les bannissements
+fail2ban-client status sshd
 
-# Test depuis l'extérieur
-curl -I https://neurovet.votredomaine.com
+# Débannir une IP
+fail2ban-client set sshd unbanip ADRESSE_IP
+
+# Logs fail2ban
+tail -f /var/log/fail2ban.log
 ```
 
 ---
@@ -568,10 +583,11 @@ curl -I https://neurovet.votredomaine.com
 
 ```bash
 # Vérifier les logs
+cd /opt/apps/neurolocalizer-v2
 docker-compose logs
 
 # Vérifier les ports occupés
-sudo netstat -tulpn | grep -E '3000|8000|3306'
+netstat -tulpn | grep -E '3000|8000|3306'
 
 # Reconstruire complètement
 docker-compose down -v
@@ -595,77 +611,96 @@ SHOW TABLES;
 
 ```bash
 # Vérifier les certificats
-sudo certbot certificates
+certbot certificates
 
 # Renouveler manuellement
-sudo certbot renew
+certbot renew
 
 # Tester la configuration nginx
-sudo nginx -t
+nginx -t
 ```
 
-### Logs d'Erreur
+### Connexion SSH Bloquée
 
-```bash
-# Backend
-docker-compose logs backend | grep ERROR
+Si vous êtes bloqué par Fail2Ban ou SSH :
 
-# Nginx
-sudo tail -100 /var/log/nginx/neurovet_error.log
+1. **Depuis la console Hetzner Cloud** :
+   - Connectez-vous au panneau Hetzner
+   - Utilisez la console web pour accéder au serveur
+   - Débannissez votre IP : `fail2ban-client set sshd unbanip VOTRE_IP`
 
-# Système
-sudo journalctl -xe
-```
+2. **Réinitialiser Fail2Ban** :
+   ```bash
+   systemctl stop fail2ban
+   rm /var/lib/fail2ban/fail2ban.sqlite3
+   systemctl start fail2ban
+   ```
 
 ---
 
 ## 📋 Checklist Post-Déploiement
 
+- [ ] SSH sécurisé (clés uniquement, pas de mot de passe)
+- [ ] Fail2Ban installé et actif
+- [ ] Firewall UFW activé (SSH, HTTP, HTTPS)
 - [ ] Services Docker démarrés (frontend, backend, database)
 - [ ] Base de données initialisée avec migrations
 - [ ] Nginx configuré et redirection HTTP → HTTPS
 - [ ] SSL Let's Encrypt configuré et valide
 - [ ] Domaine accessible : `https://neurovet.votredomaine.com`
 - [ ] API accessible : `https://neurovet.votredomaine.com/api/v1/health`
-- [ ] Backup automatique configuré
-- [ ] Monitoring en place
-- [ ] Variables d'environnement sécurisées
-- [ ] Firewall UFW activé
+- [ ] Backup automatique configuré (cron)
+- [ ] Variables d'environnement configurées
 - [ ] Tests de l'application réussis
 
 ---
 
-## 🔐 Sécurité Supplémentaire (Optionnel)
+## 🔐 Résumé Sécurité
 
-### Fail2Ban pour Protection SSH
+### ✅ Sécurité Activée
+- SSH par clés uniquement (PasswordAuthentication: no)
+- Fail2Ban contre les attaques brute-force
+- Firewall UFW (ports SSH, HTTP, HTTPS uniquement)
+- SSL/TLS avec Let's Encrypt
+- Nginx en reverse proxy
+
+### ⚠️ Pour Production Renforcée
+Si vous passez en production réelle :
+- [ ] Créer un utilisateur dédié non-root
+- [ ] Changer le port SSH (ex: 2222)
+- [ ] Limiter SSH à des IPs spécifiques
+- [ ] Configurer des alertes de monitoring
+- [ ] Mettre en place une stratégie de backup externe (S3, etc.)
+- [ ] Activer des logs centralisés
+- [ ] Configurer un WAF (Web Application Firewall)
+
+---
+
+## 📞 Commandes Rapides
 
 ```bash
-sudo apt install fail2ban -y
-sudo systemctl enable fail2ban
-sudo systemctl start fail2ban
-```
+# Status général
+cd /opt/apps/neurolocalizer-v2
+./scripts/health-check.sh neurovet.votredomaine.com
 
-### Limiter l'Accès SSH par IP (si IP fixe)
+# Voir les logs
+docker-compose logs -f
 
-```bash
-sudo nano /etc/ssh/sshd_config
+# Redémarrer l'app
+docker-compose restart
 
-# Ajouter
-AllowUsers neurovet@VOTRE_IP_FIXE
+# Mettre à jour
+./scripts/update-app.sh
 
-# Redémarrer SSH
-sudo systemctl restart sshd
+# Backup
+./scripts/backup-db.sh
+
+# Vérifier Fail2Ban
+fail2ban-client status sshd
 ```
 
 ---
 
-## 📞 Support et Ressources
+**🎉 Félicitations ! Votre application NeuroVet est maintenant déployée de manière simplifiée et sécurisée.**
 
-- Documentation Docker Compose : https://docs.docker.com/compose/
-- Let's Encrypt : https://letsencrypt.org/
-- Nginx : https://nginx.org/en/docs/
-- Hetzner Docs : https://docs.hetzner.com/
-
----
-
-**🎉 Félicitations ! Votre application NeuroVet est maintenant déployée en production.**
+Pour toute question, consultez les logs ou utilisez le script de health check.

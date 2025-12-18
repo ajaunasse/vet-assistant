@@ -3,10 +3,13 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+from dotenv import load_dotenv
 from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, Integer, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, relationship
 
+# Load environment variables FIRST
+load_dotenv()
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://neuro_user:NeuroVet2024!@localhost:3306/neurolocalizer")
