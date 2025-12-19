@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-from src.domain.entities import ChatSession, ChatMessage, DogBreed, ConsultationReason
+from src.domain.entities import ChatSession, ChatMessage, DogBreed, ConsultationReason, User, RefreshToken
 
 
 class SessionRepository(ABC):
@@ -26,6 +26,11 @@ class SessionRepository(ABC):
     @abstractmethod
     async def get_by_slug(self, slug: str) -> Optional[ChatSession]:
         """Get a session by slug."""
+        pass
+
+    @abstractmethod
+    async def get_by_user_id(self, user_id: str) -> List[ChatSession]:
+        """Get all sessions for a user."""
         pass
 
 
@@ -83,4 +88,57 @@ class ConsultationReasonRepository(ABC):
     @abstractmethod
     async def get_by_name(self, name: str) -> Optional[ConsultationReason]:
         """Get a consultation reason by name."""
+        pass
+
+
+class UserRepository(ABC):
+    """Repository interface for users."""
+
+    @abstractmethod
+    async def create(self, user: User) -> User:
+        """Create a new user."""
+        pass
+
+    @abstractmethod
+    async def get_by_id(self, user_id: str) -> Optional[User]:
+        """Get a user by ID."""
+        pass
+
+    @abstractmethod
+    async def get_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email."""
+        pass
+
+    @abstractmethod
+    async def update(self, user: User) -> User:
+        """Update an existing user."""
+        pass
+
+    @abstractmethod
+    async def get_by_verification_token(self, token: str) -> Optional[User]:
+        """Get a user by verification token."""
+        pass
+
+
+class RefreshTokenRepository(ABC):
+    """Repository interface for refresh tokens."""
+
+    @abstractmethod
+    async def create(self, refresh_token: RefreshToken) -> RefreshToken:
+        """Create a new refresh token."""
+        pass
+
+    @abstractmethod
+    async def get_by_token(self, token: str) -> Optional[RefreshToken]:
+        """Get a refresh token by token value."""
+        pass
+
+    @abstractmethod
+    async def revoke_user_tokens(self, user_id: str) -> None:
+        """Revoke all refresh tokens for a user."""
+        pass
+
+    @abstractmethod
+    async def delete_expired(self) -> None:
+        """Delete all expired refresh tokens."""
         pass
