@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { apiService } from '../services/api';
-import { VeterinaryAssessment } from '../types/api';
+import { VeterinaryAssessment, PatientData } from '../types/api';
 import AssessmentDisplay from './AssessmentDisplay';
+import PatientDataDisplay from './PatientDataDisplay';
+import ConversationSidebar from './ConversationSidebar';
+import PreConsultationFormMUI from './PreConsultationFormMUI';
+import MarkdownRenderer from './MarkdownRenderer';
 import SessionManager from '../utils/SessionManager';
+import { conversationHistory } from '../services/conversationHistory';
 import '../styles/ChatInterface.css';
 
 interface Message {
@@ -10,50 +16,154 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  status?: string;  // "processed" or "completed" for assistant messages
+  follow_up_question?: string;  // Question de suivi for assistant messages
   assessment?: VeterinaryAssessment;
+  isError?: boolean;  // True if this is an error message
+  retryMessageContent?: string;  // Content of the message to retry
+}
+
+interface PreConsultationData {
+  race: string;
+  age: string;
+  sexe: 'Mâle' | 'Femelle' | '';
+  castre: boolean;
+  motif_consultation: string;
+  premiers_symptomes: string;
+  examens_realises: string;
+  etat_conscience: 'NSP' | 'Normal' | 'Altéré' | '';
+  comportement: 'NSP' | 'Normal' | 'Compulsif' | '';
+  convulsions: 'Oui' | 'Non' | 'NSP' | '';
 }
 
 const ChatInterface: React.FC = () => {
+  const { sessionId: sessionIdFromUrl } = useParams<{ sessionId?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [isConnected, setIsConnected] = useState(false);
+  const [patientData, setPatientData] = useState<PatientData | null>(null);
+  const [showPatientData, setShowPatientData] = useState(false);
+  const [currentSlug, setCurrentSlug] = useState<string | null>(null);
+  const [showPreConsultationForm, setShowPreConsultationForm] = useState(false);
+  const [isNewConsultation, setIsNewConsultation] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleConversationSelect = (sessionId: string) => {
+    window.location.href = `/${sessionId}`;
+  };
+
+  const handleNewConversation = () => {
+    setIsNewConsultation(true);
+    setShowPreConsultationForm(true);
+  };
+
   const initializeSession = useCallback(async () => {
     try {
       console.log('[ChatInterface] Initializing session...');
-      const sessionManager = SessionManager.getInstance();
-      
-      const newSessionId = await sessionManager.getSessionId(async () => {
-        console.log('[ChatInterface] Creating session via API...');
-        return await apiService.createSession();
-      });
-      
-      console.log('[ChatInterface] Session initialized:', newSessionId);
-      setSessionId(newSessionId);
-      setIsConnected(true);
-      
-      // Add welcome message only if we don't already have messages
-      if (messages.length === 0) {
-        const welcomeMessage: Message = {
-          id: 'welcome',
-          role: 'assistant',
-          content: 'Je suis , votre assistant spécialisé en neurologie vétérinaire canine. Décrivez-moi les symptômes neurologiques observés chez votre patient.',
-          timestamp: new Date()
-        };
-        setMessages([welcomeMessage]);
+
+      if (sessionIdFromUrl) {
+        // Load existing session by ID
+        console.log('[ChatInterface] Loading session by ID:', sessionIdFromUrl);
+        const sessionData = await apiService.getSession(sessionIdFromUrl);
+        
+        setSessionId(sessionData.session.id);
+        setCurrentSlug(sessionData.session.slug || '');
+        setIsConnected(true);
+        
+        // Load messages from the session
+        const loadedMessages = sessionData.messages.map((msg: any, index: number) => {
+          // For the last assistant message, use the session's current_assessment if available
+          let assessment: VeterinaryAssessment | undefined = undefined;
+          const isLastAssistantMessage = msg.role === 'assistant' &&
+            index === sessionData.messages.length - 1;
+
+          if (msg.role === 'assistant' && msg.status) {
+            if (isLastAssistantMessage && sessionData.session.current_assessment) {
+              // Use the full assessment from the session
+              assessment = sessionData.session.current_assessment;
+            } else {
+              // For older messages, create a minimal assessment
+              assessment = {
+                assessment: msg.content.replace(/^Assessment: /, ''),
+                status: msg.status,
+                question: msg.follow_up_question || '',
+                localization: undefined,
+                differentials: [],
+                diagnostics: [],
+                treatment: '',
+                prognosis: '',
+                patient_data: [],
+                confidence_level: 'moyenne'
+              };
+            }
+          }
+
+          return {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            status: msg.status,
+            follow_up_question: msg.follow_up_question,
+            assessment
+          };
+        });
+        
+        setMessages(loadedMessages);
+        
+        // Load patient data if available
+        if (sessionData.session.patient_data) {
+          setPatientData(sessionData.session.patient_data);
+        }
+        
+        // Update conversation in history
+        const firstUserMessage = sessionData.messages.find((m: any) => m.role === 'user')?.content;
+        if (firstUserMessage) {
+          conversationHistory.updateActivity(sessionData.session.id, sessionData.messages.length);
+        }
+        
+      } else {
+        // Create new session
+        const sessionManager = SessionManager.getInstance();
+        
+        const newSessionId = await sessionManager.getSessionId(async () => {
+          console.log('[ChatInterface] Creating session via API...');
+          return await apiService.createSession();
+        });
+        
+        console.log('[ChatInterface] Session initialized:', newSessionId);
+        setSessionId(newSessionId);
+        setIsConnected(true);
+        
+        // Check if we should show pre-consultation form for new sessions
+        if (messages.length === 0 && !sessionIdFromUrl) {
+          setShowPreConsultationForm(true);
+          setIsNewConsultation(true);
+        }
       }
     } catch (error) {
       console.error('[ChatInterface] Failed to initialize session:', error);
       setIsConnected(false);
     }
-  }, [messages.length]);
+  }, [sessionIdFromUrl]);
+
+  const fetchPatientData = useCallback(async (sessionId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/sessions/${sessionId}/patient-data`);
+      if (response.ok) {
+        const data = await response.json();
+        setPatientData(data);
+      }
+    } catch (error) {
+      console.error('[ChatInterface] Failed to fetch patient data:', error);
+    }
+  }, []);
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,13 +192,44 @@ const ChatInterface: React.FC = () => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      
+      // Fetch updated patient data after each message
+      await fetchPatientData(sessionId);
+      
+      // Redirect to session URL after first message (if not already there)
+      if (!sessionIdFromUrl && messages.length === 1) { // Only welcome message before
+        try {
+          const sessionData = await apiService.getSession(sessionId);
+          if (sessionData.session.slug) {
+            // Save new conversation to history
+            conversationHistory.saveConversation({
+              slug: sessionData.session.slug,
+              sessionId: sessionId,
+              title: conversationHistory.generateTitle(inputMessage),
+              firstMessage: inputMessage,
+              lastActivity: new Date(),
+              messageCount: 2 // User message + assistant response
+            });
+            
+            setCurrentSlug(sessionData.session.slug);
+            window.history.pushState({}, '', `/${sessionId}`);
+          }
+        } catch (error) {
+          console.error('Failed to get session slug:', error);
+        }
+      } else if (sessionIdFromUrl) {
+        // Update existing conversation activity
+        conversationHistory.updateActivity(sessionIdFromUrl, messages.length + 1);
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
-        timestamp: new Date()
+        timestamp: new Date(),
+        isError: true,
+        retryMessageContent: inputMessage
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -97,10 +238,207 @@ const ChatInterface: React.FC = () => {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  };
+
+  const handleRetry = async (errorMessageId: string, messageToRetry: string) => {
+    // Remove the error message
+    setMessages(prev => prev.filter(msg => msg.id !== errorMessageId));
+
+    // Resend the message
+    if (!messageToRetry || isLoading || !sessionId) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: messageToRetry,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const assessment = await apiService.sendMessage(sessionId, messageToRetry);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: assessment.assessment,
+        timestamp: new Date(),
+        assessment
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Fetch updated patient data after each message
+      await fetchPatientData(sessionId);
+
+      // Update conversation activity
+      if (sessionIdFromUrl) {
+        conversationHistory.updateActivity(sessionIdFromUrl, messages.length + 1);
+      }
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
+        timestamp: new Date(),
+        isError: true,
+        retryMessageContent: messageToRetry
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const generateInitialPrompt = (data: PreConsultationData): string => {
+    const castreText = data.castre ? 'castré/stérilisé' : 'non castré/stérilisé';
+    
+    let prompt = `Bonjour, je consulte pour mon chien avec les informations suivantes :
+
+**Informations du patient :**
+- Race : ${data.race}
+- Âge : ${data.age}
+- Sexe : ${data.sexe} (${castreText})
+- Motif de consultation : ${data.motif_consultation}
+
+**Description des symptômes :**
+${data.premiers_symptomes}
+
+**Examen clinique :**
+- État de conscience : ${data.etat_conscience}
+- Comportement : ${data.comportement}
+- Convulsions : ${data.convulsions}`;
+
+    if (data.examens_realises.trim()) {
+      prompt += `
+
+**Examens déjà réalisés :**
+${data.examens_realises}`;
+    }
+
+    prompt += `
+
+Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informations ?`;
+
+    return prompt;
+  };
+
+  const handlePreConsultationSubmit = async (data: PreConsultationData) => {
+    try {
+      setShowPreConsultationForm(false);
+      
+      let currentSessionId = sessionId;
+      
+      if (isNewConsultation) {
+        // Reset session for new consultation
+        apiService.resetSession();
+        
+        // Initialize new session
+        const sessionManager = SessionManager.getInstance();
+        const newSessionId = await sessionManager.getSessionId(async () => {
+          return await apiService.createSession();
+        });
+        
+        setSessionId(newSessionId);
+        setIsConnected(true);
+        setMessages([]);
+        currentSessionId = newSessionId;
+      }
+
+      // First, save patient data from form
+      await apiService.savePatientData(currentSessionId, data);
+
+      // Generate and send initial prompt
+      const initialPrompt = generateInitialPrompt(data);
+      setInputMessage('');
+      setIsLoading(true);
+
+      // Create user message
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: 'user',
+        content: initialPrompt,
+        timestamp: new Date()
+      };
+
+      setMessages([userMessage]);
+
+      // Send to API
+      const assessment = await apiService.sendMessage(currentSessionId, initialPrompt);
+      
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: assessment.assessment,
+        timestamp: new Date(),
+        assessment
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+      
+      // Fetch updated patient data
+      await fetchPatientData(currentSessionId);
+      
+      // Handle URL and conversation history for new consultation
+      if (isNewConsultation) {
+        try {
+          const sessionData = await apiService.getSession(currentSessionId);
+          if (sessionData.session.slug) {
+            conversationHistory.saveConversation({
+              slug: sessionData.session.slug,
+              sessionId: currentSessionId,
+              title: `${data.race} - ${data.motif_consultation}`,
+              firstMessage: `Consultation ${data.race} (${data.sexe})`,
+              lastActivity: new Date(),
+              messageCount: 2
+            });
+            
+            setCurrentSlug(sessionData.session.slug);
+            window.history.pushState({}, '', `/${sessionId}`);
+          }
+        } catch (error) {
+          console.error('Failed to get session slug:', error);
+        }
+        setIsNewConsultation(false);
+      }
+      
+    } catch (error) {
+      console.error('Failed to process pre-consultation data:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Désolé, une erreur est survenue lors du traitement des informations. Veuillez réessayer.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePreConsultationCancel = () => {
+    setShowPreConsultationForm(false);
+    if (isNewConsultation) {
+      // If it's a new consultation and user cancels, redirect to home
+      setIsNewConsultation(false);
+      if (!sessionIdFromUrl) {
+        // Add welcome message for cancelled new consultation
+        const welcomeMessage: Message = {
+          id: 'welcome',
+          role: 'assistant',
+          content: 'Bonjour ! Je suis votre assistant spécialisé en neurologie vétérinaire canine. Cliquez sur "Nouveau" pour commencer une consultation avec le formulaire pré-rempli, ou tapez directement votre question.',
+          timestamp: new Date()
+        };
+        setMessages([welcomeMessage]);
+      }
+    }
   };
 
   useEffect(() => {
@@ -112,72 +450,133 @@ const ChatInterface: React.FC = () => {
   }, [messages]);
 
   return (
-    <div className="chat-interface">
-      <div className="chat-header">
-        <h1>🧠 NeuroVet - Assistant Diagnostique</h1>
-        <div className="connection-status">
-          <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-            {isConnected ? '🟢 Connecté' : '🔴 Déconnecté'}
-          </span>
+    <>
+      <ConversationSidebar
+        currentSlug={currentSlug}
+        onConversationSelect={handleConversationSelect}
+        onNewConversation={handleNewConversation}
+      />
+      
+      <div className="chat-interface main-content">
+        <div className="chat-card">
+          <div className="chat-header">
+            <h1>
+              <i className="fas fa-brain"></i>
+              <span>NeuroLocus - Assistant Diagnostique</span>
+            </h1>
+            <div className="header-controls">
+              <button 
+                className={`patient-data-toggle ${showPatientData ? 'active' : ''}`}
+                onClick={() => setShowPatientData(!showPatientData)}
+                disabled={!patientData || patientData.collected_fields.length === 0}
+              >
+                <i className="fas fa-chart-bar"></i>
+                <span>Données Patient</span>
+                {patientData && patientData.collected_fields.length > 0 && (
+                  <span className="data-count">{patientData.collected_fields.length}</span>
+                )}
+              </button>
+              <div className="connection-status">
+                <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+                  <i className={`fas ${isConnected ? 'fa-circle' : 'fa-circle'}`}></i>
+                  <span>{isConnected ? 'Connecté' : 'Déconnecté'}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="chat-messages">
+            <div className="messages-container">
+              {messages.map((message) => (
+                <div key={message.id} className={`message ${message.role}`}>
+                  <div className="message-header">
+                    <span className="role">
+                      <i className={`fas ${message.role === 'user' ? 'fa-user-md' : 'fa-robot'}`}></i>
+                      <span>{message.role === 'user' ? 'Vétérinaire' : 'Dr. NeuroLocus'}</span>
+                    </span>
+                    <span className="timestamp">{formatTime(message.timestamp)}</span>
+                  </div>
+                  {message.assessment ? (
+                    <AssessmentDisplay assessment={message.assessment} />
+                  ) : (
+                    <div className="message-content">
+                      <MarkdownRenderer content={message.content} />
+                      {message.isError && message.retryMessageContent && (
+                        <button
+                          className="retry-button"
+                          onClick={() => handleRetry(message.id, message.retryMessageContent!)}
+                          disabled={isLoading}
+                        >
+                          <i className="fas fa-redo"></i>
+                          <span>Réessayer</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {isLoading && (
+                <div className="message assistant">
+                  <div className="message-header">
+                    <span className="role">
+                      <i className="fas fa-robot"></i>
+                      <span>Dr. NeuroLocus</span>
+                    </span>
+                  </div>
+                  <div className="message-content loading">
+                    <div className="typing-indicator">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    Analyse en cours...
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Affichage des données patient */}
+          {showPatientData && patientData && (
+            <PatientDataDisplay 
+              patientData={patientData} 
+              onClose={() => setShowPatientData(false)}
+            />
+          )}
+
+          <form onSubmit={sendMessage} className="chat-input-form">
+            <div className="input-wrapper">
+              <div className="input-container">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder="Ex: Mon chien Malinois mâle de 3 ans présente des tremblements et troubles de l'équilibre depuis 2 jours..."
+                  disabled={isLoading || !isConnected}
+                  className="chat-input"
+                />
+                <button 
+                  type="submit" 
+                  disabled={isLoading || !inputMessage.trim() || !isConnected}
+                  className="send-button"
+                >
+                  {isLoading ? <i className="fas fa-spinner fa-spin"></i> : <i className="fas fa-paper-plane"></i>}
+                </button>
+              </div>
+            </div>
+          </form>
         </div>
-      </div>
 
-      <div className="chat-messages">
-        {messages.map((message) => (
-          <div key={message.id} className={`message ${message.role}`}>
-            <div className="message-header">
-              <span className="role">
-                {message.role === 'user' ? '👩‍⚕️ Vétérinaire' : '🧠 Dr. NeuroVet'}
-              </span>
-              <span className="timestamp">{formatTime(message.timestamp)}</span>
-            </div>
-            {message.assessment ? (
-              <AssessmentDisplay assessment={message.assessment} />
-            ) : (
-              <div className="message-content">
-                {message.content}
-              </div>
-            )}
-          </div>
-        ))}
-        {isLoading && (
-          <div className="message assistant">
-            <div className="message-header">
-              <span className="role">🧠 Dr. NeuroVet</span>
-            </div>
-            <div className="message-content loading">
-              <div className="typing-indicator">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              Analyse en cours...
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      <form onSubmit={sendMessage} className="chat-input-form">
-        <div className="input-container">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Décrivez les symptômes neurologiques observés..."
-            disabled={isLoading || !isConnected}
-            className="chat-input"
+        {/* Pre-consultation form */}
+        {showPreConsultationForm && (
+          <PreConsultationFormMUI
+            onSubmit={handlePreConsultationSubmit}
+            onCancel={handlePreConsultationCancel}
           />
-          <button 
-            type="submit" 
-            disabled={isLoading || !inputMessage.trim() || !isConnected}
-            className="send-button"
-          >
-            {isLoading ? '⏳' : '📤'}
-          </button>
-        </div>
-      </form>
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

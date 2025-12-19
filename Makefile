@@ -1,7 +1,7 @@
 # NeuroVet Makefile - Docker Commands
 # Usage: make <command>
 
-.PHONY: help build up down restart logs clean dev stop backend frontend db shell test
+.PHONY: help build up down restart logs clean dev stop backend frontend db shell test migrate-auto migrate-up migrate-down migrate-history migrate-current
 
 # Default target
 help: ## Show this help message
@@ -58,9 +58,9 @@ shell-db: ## Open MySQL shell
 	docker-compose exec db mysql -u neurovet -p neurovet_db
 
 # Development commands
-install: ## Install backend dependencies
+# Install backend dependencies
+install:
 	docker-compose exec backend uv sync
-
 # Database commands
 db-init: ## Initialize database (create tables)
 	docker-compose exec backend uv run python scripts/init_db.py init
@@ -87,6 +87,28 @@ db-setup: ## Complete database setup (start db, wait, init tables)
 
 db-migrate: ## Run database migrations (create tables)
 	make db-init
+
+# Alembic migration commands
+migrate-auto: ## Generate new migration from model changes
+	@echo "🔄 Generating migration from model changes..."
+	@read -p "Enter migration description: " desc; \
+	docker-compose exec backend uv run alembic revision --autogenerate -m "$$desc"
+
+migrate-up: ## Apply pending migrations
+	@echo "⬆️  Applying pending migrations..."
+	docker-compose exec backend uv run alembic upgrade head
+
+migrate-down: ## Rollback last migration  
+	@echo "⬇️  Rolling back last migration..."
+	docker-compose exec backend uv run alembic downgrade -1
+
+migrate-history: ## Show migration history
+	@echo "📜 Migration history:"
+	docker-compose exec backend uv run alembic history --verbose
+
+migrate-current: ## Show current migration
+	@echo "📍 Current migration:"
+	docker-compose exec backend uv run alembic current
 
 db-seed: ## Seed database with sample data (if needed)
 	@echo "🌱 No seed data defined yet"

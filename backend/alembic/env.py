@@ -3,12 +3,15 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 import os
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from infrastructure.database.connection import Base
-from infrastructure.database.models import *
+from src.infrastructure.database import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -30,7 +33,11 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL from environment or config."""
-    return os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    url = os.getenv("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+    # Replace aiomysql with pymysql for Alembic (synchronous)
+    if url and "mysql+aiomysql" in url:
+        url = url.replace("mysql+aiomysql", "mysql+pymysql")
+    return url
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Union, Dict, Any
 
 from pydantic import BaseModel, Field
 
@@ -12,16 +12,70 @@ class SendMessageRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=5000)
 
 
+class CollectionResponse(BaseModel):
+    """Response schema for data collection phase."""
+    message: str
+    response_type: str = "collection"
+    questions: List[str] = Field(default_factory=list)
+    data_extracted: Dict[str, Any] = Field(default_factory=dict)
+    ready_for_diagnosis: bool = False
+    confidence_level: str = "medium"
+
+
+class PatientDataAI(BaseModel):
+    """Schema for patient data from AI response."""
+    race: Optional[str] = None
+    age: Optional[str] = None
+    sexe: Optional[str] = None
+    symptomes: List[str] = Field(default_factory=list)
+    examens: List[str] = Field(default_factory=list)
+    historique: Optional[str] = None
+    traitement_actuel: Optional[str] = None
+
+
 class VeterinaryAssessmentResponse(BaseModel):
     """Response schema for veterinary assessment."""
     assessment: str
+    status: str = "processed"  # "processed" or "completed"
     localization: Optional[str] = None
     differentials: List[dict] = Field(default_factory=list)
     diagnostics: List[str] = Field(default_factory=list)
-    treatment: str
-    prognosis: str
-    questions: List[str] = Field(default_factory=list)
-    confidence_level: str
+    treatment: str = ""
+    prognosis: str = ""
+    patient_data: Optional[PatientDataAI] = None
+    question: str = ""
+    confidence_level: str = "moyenne"
+
+
+class PatientDataRequest(BaseModel):
+    """Request schema for patient data from pre-consultation form."""
+    race: str
+    age: str
+    sexe: str  # 'Mâle' or 'Femelle'
+    castre: bool
+    motif_consultation: str
+    premiers_symptomes: str
+    examens_realises: str = ""
+    etat_conscience: str  # 'NSP' | 'Normal' | 'Altéré'
+    comportement: str  # 'NSP' | 'Normal' | 'Compulsif'
+    convulsions: str  # 'Oui' | 'Non' | 'NSP'
+
+
+class PatientDataResponse(BaseModel):
+    """Response schema for patient data."""
+    age: Optional[str] = None
+    sex: Optional[str] = None
+    race: Optional[str] = None
+    weight: Optional[str] = None
+    symptoms: List[str] = Field(default_factory=list)
+    symptom_duration: Optional[str] = None
+    symptom_progression: Optional[str] = None
+    neurological_exam: Dict[str, Any] = Field(default_factory=dict)
+    other_exams: Dict[str, Any] = Field(default_factory=dict)
+    medical_history: List[str] = Field(default_factory=list)
+    current_medications: List[str] = Field(default_factory=list)
+    is_complete: bool = False
+    collected_fields: List[str] = Field(default_factory=list)
 
 
 class ChatMessageResponse(BaseModel):
@@ -30,6 +84,8 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     timestamp: datetime
+    status: Optional[str] = None  # "processed" or "completed" for assistant messages
+    follow_up_question: Optional[str] = None  # Question de suivi for assistant messages
 
 
 class SessionResponse(BaseModel):
@@ -37,7 +93,10 @@ class SessionResponse(BaseModel):
     id: str
     created_at: datetime
     updated_at: datetime
+    slug: Optional[str] = None
     current_assessment: Optional[VeterinaryAssessmentResponse] = None
+    patient_data: Optional[PatientDataResponse] = None
+    is_collecting_data: bool = True
 
 
 class SessionWithMessagesResponse(BaseModel):
@@ -50,3 +109,18 @@ class HealthResponse(BaseModel):
     """Response schema for health check."""
     status: str
     message: str
+
+
+class DogBreedResponse(BaseModel):
+    """Response schema for dog breed."""
+    id: int
+    name: str
+    created_at: datetime
+
+
+class ConsultationReasonResponse(BaseModel):
+    """Response schema for consultation reason."""
+    id: int
+    name: str
+    description: Optional[str] = None
+    created_at: datetime
