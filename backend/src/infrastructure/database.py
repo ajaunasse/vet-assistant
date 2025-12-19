@@ -87,6 +87,46 @@ class Database:
 
 
 # Database models
+class UserModel(Base):
+    """SQLAlchemy model for users."""
+    __tablename__ = "users"
+
+    id = Column(String(36), primary_key=True, index=True)
+    email = Column(String(255), nullable=False, unique=True, index=True)
+    hashed_password = Column(String(255), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    clinic_name = Column(String(255), nullable=True)
+    order_number = Column(String(100), nullable=True)
+    specialty = Column(String(100), nullable=True)
+    is_student = Column(Boolean, default=False, nullable=False)
+    school_name = Column(String(255), nullable=True)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    verification_token = Column(String(255), nullable=True, index=True)
+    verification_token_expires = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    sessions = relationship("SessionModel", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshTokenModel", back_populates="user", cascade="all, delete-orphan")
+
+
+class RefreshTokenModel(Base):
+    """SQLAlchemy model for refresh tokens."""
+    __tablename__ = "refresh_tokens"
+
+    id = Column(String(36), primary_key=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
+    token = Column(String(255), nullable=False, unique=True, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    revoked = Column(Boolean, default=False, nullable=False)
+
+    # Relationships
+    user = relationship("UserModel", back_populates="refresh_tokens")
+
+
 class SessionModel(Base):
     """SQLAlchemy model for chat sessions."""
     __tablename__ = "chat_sessions"
@@ -99,9 +139,11 @@ class SessionModel(Base):
     openai_thread_id = Column(String(255), nullable=True)
     patient_data = Column(JSON, nullable=True)
     is_collecting_data = Column(Boolean, default=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
 
     # Relationships
     messages = relationship("MessageModel", back_populates="session", cascade="all, delete-orphan")
+    user = relationship("UserModel", back_populates="sessions")
 
 
 class MessageModel(Base):

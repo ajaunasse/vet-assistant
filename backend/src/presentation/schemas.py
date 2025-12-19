@@ -124,3 +124,81 @@ class ConsultationReasonResponse(BaseModel):
     name: str
     description: Optional[str] = None
     created_at: datetime
+
+
+# Authentication Schemas
+
+class RegisterRequest(BaseModel):
+    """Request schema for user registration."""
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=8, max_length=100)
+    first_name: str = Field(..., min_length=1, max_length=100)
+    last_name: str = Field(..., min_length=1, max_length=100)
+    clinic_name: Optional[str] = Field(None, max_length=255)
+    order_number: Optional[str] = Field(None, max_length=100)
+    specialty: Optional[str] = Field(None, max_length=100)
+    is_student: bool = False
+    school_name: Optional[str] = Field(None, max_length=255)
+
+
+class LoginRequest(BaseModel):
+    """Request schema for user login."""
+    email: str = Field(..., min_length=3, max_length=255)
+    password: str = Field(..., min_length=1, max_length=100)
+
+
+class RefreshTokenRequest(BaseModel):
+    """Request schema for token refresh."""
+    refresh_token: str
+
+
+class UpdateProfileRequest(BaseModel):
+    """Request schema for profile update."""
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    clinic_name: Optional[str] = Field(None, max_length=255)
+    order_number: Optional[str] = Field(None, max_length=100)
+    specialty: Optional[str] = Field(None, max_length=100)
+    is_student: Optional[bool] = None
+    school_name: Optional[str] = Field(None, max_length=255)
+
+
+class UserResponse(BaseModel):
+    """Response schema for user."""
+    id: str
+    email: str
+    first_name: str
+    last_name: str
+    clinic_name: Optional[str] = None
+    order_number: Optional[str] = None
+    specialty: Optional[str] = None
+    is_student: bool = False
+    school_name: Optional[str] = None
+    is_verified: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class TokenResponse(BaseModel):
+    """Response schema for authentication tokens."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class VerifyEmailResponse(BaseModel):
+    """Response schema for email verification."""
+    verified: bool
+    message: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """Request schema for resending verification email."""
+    email: str = Field(..., min_length=3, max_length=255)
+
+
+class ResendVerificationResponse(BaseModel):
+    """Response schema for resending verification email."""
+    success: bool
+    message: str

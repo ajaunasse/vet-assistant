@@ -19,6 +19,11 @@ dependencies = [
     "httpx>=0.27.0",
     "alembic>=1.16.5",
     "gunicorn>=23.0.0",
+    "passlib[argon2]>=1.7.4",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.21",
+    "email-validator>=2.3.0",
+    "resend>=2.19.0",
 ]
 
 [project.scripts]

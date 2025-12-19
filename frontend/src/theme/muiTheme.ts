@@ -24,7 +24,8 @@ export const neuroLocusTheme = createTheme({
     divider: '#e2e8f0',
   },
   typography: {
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: '"Nunito", sans-serif',
+    fontSize: 15,
     h1: {
       fontFamily: '"Nunito", sans-serif',
       fontWeight: 700,

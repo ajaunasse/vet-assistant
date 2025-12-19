@@ -1,15 +1,5 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 import { ChatRequest, ChatResponse, SessionResponse } from '../types/api';
-
-// Use relative URLs to leverage the proxy configuration in package.json
-const API_BASE_URL = '/api/v1';
-
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 // Deduplication mechanism for session creation
 let pendingSessionRequest: Promise<string> | null = null;
@@ -30,7 +20,7 @@ export const apiService = {
     }
     
     console.log('Creating new session request');
-    pendingSessionRequest = api.post<SessionResponse>('/sessions')
+    pendingSessionRequest = apiClient.post<SessionResponse>('/sessions')
       .then(response => {
         const sessionId = response.data.id;
         console.log('Session created successfully:', sessionId);
@@ -49,26 +39,26 @@ export const apiService = {
 
   async sendMessage(sessionId: string, message: string): Promise<ChatResponse> {
     const request: ChatRequest = { message };
-    const response = await api.post<ChatResponse>(`/sessions/${sessionId}/messages`, request);
+    const response = await apiClient.post<ChatResponse>(`/sessions/${sessionId}/messages`, request);
     return response.data;
   },
 
   async savePatientData(sessionId: string, patientData: any): Promise<void> {
-    await api.post(`/sessions/${sessionId}/patient-data`, patientData);
+    await apiClient.post(`/sessions/${sessionId}/patient-data`, patientData);
   },
 
   async getSession(sessionId: string) {
-    const response = await api.get(`/sessions/${sessionId}`);
+    const response = await apiClient.get(`/sessions/${sessionId}`);
     return response.data;
   },
 
   async getSessionBySlug(slug: string) {
-    const response = await api.get(`/sessions/slug/${slug}`);
+    const response = await apiClient.get(`/sessions/slug/${slug}`);
     return response.data;
   },
 
   async healthCheck() {
-    const response = await api.get('/health');
+    const response = await apiClient.get('/health');
     return response.data;
   },
 

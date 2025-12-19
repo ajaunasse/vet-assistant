@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vérifiez votre email - NeuroLocus</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #48c78e 0%, #3eb07d 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .content p {
+            margin: 15px 0;
+            color: #555;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #48c78e 0%, #3eb07d 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(72, 199, 142, 0.3);
+        }
+        .footer {
+            background-color: #f8fafb;
+            padding: 20px 30px;
+            text-align: center;
+            color: #777;
+            font-size: 14px;
+            border-top: 1px solid #e1e8ed;
+        }
+        .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img src="{{logo_url}}" alt="NeuroLocus" style="height: 60px; margin-bottom: 15px;" />
+            <h1>NeuroLocus</h1>
+        </div>
+        <div class="content">
+            <h2>Bienvenue, {{first_name}}!</h2>
+            <p>Merci de vous être inscrit sur NeuroLocus, votre assistant IA pour le diagnostic neurologique vétérinaire.</p>
+            <p>Pour activer votre compte et commencer à utiliser la plateforme, veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous:</p>
+
+            <div style="text-align: center;">
+                <a href="{{verification_url}}" class="button">Vérifier mon email</a>
+            </div>
+
+            <div class="warning">
+                <strong>⚠️ Important:</strong> Ce lien de vérification expirera dans 7 jours. Si vous ne vérifiez pas votre email dans ce délai, vous devrez vous réinscrire.
+            </div>
+
+            <p>Si le bouton ne fonctionne pas, vous pouvez copier et coller ce lien dans votre navigateur:</p>
+            <p style="word-break: break-all; color: #48c78e; font-size: 12px;">{{verification_url}}</p>
+
+            <p style="margin-top: 30px;">Si vous n'avez pas créé de compte sur NeuroLocus, vous pouvez ignorer cet email en toute sécurité.</p>
+        </div>
+        <div class="footer">
+            <p>© 2025 NeuroLocus. Tous droits réservés.</p>
+            <p style="font-size: 12px; margin-top: 10px;">Outil d'aide au diagnostic - Ne remplace pas l'avis d'un vétérinaire qualifié.</p>
+        </div>
+    </div>
+</body>
+</html>

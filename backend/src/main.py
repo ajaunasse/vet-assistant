@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from src.infrastructure.database import database
 from src.presentation import router
+from src.presentation.auth_router import router as auth_router
 
 # Load environment variables
 load_dotenv()
@@ -31,15 +32,21 @@ app = FastAPI(
 )
 
 # CORS middleware for React frontend
+frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://frontend:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://frontend:3000",
+        frontend_url,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include API routes
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(router, prefix="/api/v1")
 
 
