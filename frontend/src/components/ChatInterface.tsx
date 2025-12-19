@@ -465,7 +465,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
               <span>NeuroLocus - Assistant Diagnostique</span>
             </h1>
             <div className="header-controls">
-              <button 
+              <button
                 className={`patient-data-toggle ${showPatientData ? 'active' : ''}`}
                 onClick={() => setShowPatientData(!showPatientData)}
                 disabled={!patientData || patientData.collected_fields.length === 0}
@@ -476,12 +476,6 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
                   <span className="data-count">{patientData.collected_fields.length}</span>
                 )}
               </button>
-              <div className="connection-status">
-                <span className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
-                  <i className={`fas ${isConnected ? 'fa-circle' : 'fa-circle'}`}></i>
-                  <span>{isConnected ? 'Connecté' : 'Déconnecté'}</span>
-                </span>
-              </div>
             </div>
           </div>
 

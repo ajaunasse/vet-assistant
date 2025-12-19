@@ -52,11 +52,11 @@ class LoginUserHandler:
         # Get user by email
         user = await self.user_repository.get_by_email(command.email)
         if not user:
-            raise ValueError("Invalid email or password")
+            raise ValueError("Email ou mot de passe invalide")
 
         # Verify password
         if not self.password_service.verify_password(command.password, user.hashed_password):
-            raise ValueError("Invalid email or password")
+            raise ValueError("Email ou mot de passe invalide")
 
         # Check if email is verified
         if not user.is_verified:

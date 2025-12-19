@@ -60,7 +60,8 @@ const Header: React.FC = () => {
           maxWidth: '1400px',
           width: '100%',
           margin: '0 auto',
-          px: 3,
+          px: { xs: 1.5, sm: 2, md: 3 },
+          minHeight: { xs: '56px', md: '64px' },
         }}
       >
         {/* Logo */}
@@ -69,7 +70,7 @@ const Header: React.FC = () => {
             src="/neuro-locus-logo.png"
             alt="NeuroLocus"
             style={{
-              height: '100px',
+              height: 'clamp(60px, 15vw, 100px)',
               width: 'auto',
               display: 'block',
               objectFit: 'contain',
@@ -80,20 +81,23 @@ const Header: React.FC = () => {
         </Link>
 
         {/* Navigation */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1, md: 2 } }}>
           {isAuthenticated && user ? (
             <>
               {/* New Consultation Button */}
               <Button
                 variant="contained"
-                startIcon={<Add />}
+                startIcon={<Add sx={{ display: { xs: 'none', sm: 'block' } }} />}
                 onClick={() => navigate('/chat')}
                 sx={{
                   background: 'linear-gradient(135deg, #48c78e 0%, #3eb07d 100%)',
                   color: '#ffffff',
                   fontWeight: 600,
                   textTransform: 'none',
-                  px: 2.5,
+                  px: { xs: 1.5, sm: 2, md: 2.5 },
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                  whiteSpace: 'nowrap',
+                  minWidth: 'auto',
                   '&:hover': {
                     background: 'linear-gradient(135deg, #3eb07d 0%, #36a06d 100%)',
                     transform: 'translateY(-1px)',
@@ -102,7 +106,12 @@ const Header: React.FC = () => {
                   transition: 'all 0.2s ease',
                 }}
               >
-                Nouvelle Consultation
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>
+                  Nouvelle Consultation
+                </Box>
+                <Box component="span" sx={{ display: { xs: 'inline', sm: 'none' } }}>
+                  Nouvelle
+                </Box>
               </Button>
 
               {/* User Avatar and Menu */}
@@ -179,12 +188,15 @@ const Header: React.FC = () => {
               {/* Login and Register Buttons */}
               <Button
                 variant="text"
-                startIcon={<Person />}
+                startIcon={<Person sx={{ display: { xs: 'none', sm: 'inline-flex' } }} />}
                 onClick={() => navigate('/login')}
                 sx={{
                   color: '#475569',
                   fontWeight: 500,
                   textTransform: 'none',
+                  px: { xs: 1, sm: 1.5 },
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                  minWidth: 'auto',
                   '&:hover': {
                     backgroundColor: '#f1f5f9',
                     color: '#48c78e',
@@ -202,7 +214,10 @@ const Header: React.FC = () => {
                   color: '#ffffff',
                   fontWeight: 600,
                   textTransform: 'none',
-                  px: 2.5,
+                  px: { xs: 1.5, sm: 2, md: 2.5 },
+                  fontSize: { xs: '0.8rem', sm: '0.875rem' },
+                  minWidth: 'auto',
+                  whiteSpace: 'nowrap',
                   '&:hover': {
                     background: 'linear-gradient(135deg, #3eb07d 0%, #36a06d 100%)',
                     transform: 'translateY(-1px)',

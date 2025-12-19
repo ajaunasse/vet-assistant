@@ -7,7 +7,7 @@
   height: 100vh;
   background: linear-gradient(135deg, #f8fafb 0%, #e8f8f1 100%);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  padding: 84px 20px 0;
+  padding: 100px 20px 0;
   justify-content: flex-start;
   align-items: center;
   overflow: hidden;
@@ -18,7 +18,7 @@
   flex-direction: column;
   width: 100%;
   max-width: 1200px;
-  height: calc(100vh - 84px);
+  height: calc(100vh - 100px);
   background: #ffffff;
   border-radius: 20px 20px 0 0;
   box-shadow:
@@ -67,58 +67,55 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
-  background: #48c78e;
-  color: white;
-  border: none;
-  border-radius: 50px;
-  font-size: 13px;
+  padding: 10px 20px;
+  background: linear-gradient(135deg, #f0fdf7 0%, #e8f8f1 100%);
+  color: #48c78e;
+  border: 2px solid #48c78e;
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(72, 199, 142, 0.1);
 }
 
 .patient-data-toggle:hover:not(:disabled) {
-  background: #3eb07d;
+  background: linear-gradient(135deg, #48c78e 0%, #3eb07d 100%);
+  color: white;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(72, 199, 142, 0.3);
+  box-shadow: 0 4px 16px rgba(72, 199, 142, 0.25);
+  border-color: #3eb07d;
 }
 
 .patient-data-toggle.active {
-  background: #3eb07d;
-  box-shadow: 0 4px 12px rgba(72, 199, 142, 0.3);
+  background: linear-gradient(135deg, #48c78e 0%, #3eb07d 100%);
+  color: white;
+  border-color: #3eb07d;
+  box-shadow: 0 4px 16px rgba(72, 199, 142, 0.3);
 }
 
 .patient-data-toggle:disabled {
-  opacity: 0.6;
+  opacity: 0.4;
   cursor: not-allowed;
-  background: #9ca3af;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-color: #cbd5e1;
+  box-shadow: none;
 }
 
 .data-count {
-  background: rgba(255, 255, 255, 0.25);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  background: rgba(72, 199, 142, 0.2);
+  color: #48c78e;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 12px;
   font-weight: 700;
 }
 
-.connection-status {
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #6c7a89;
-}
-
-.status-indicator.connected {
-  color: #48c78e;
-  font-weight: 600;
-}
-
-.status-indicator.disconnected {
-  color: #e74c3c;
-  font-weight: 600;
+.patient-data-toggle.active .data-count,
+.patient-data-toggle:hover:not(:disabled) .data-count {
+  background: rgba(255, 255, 255, 0.3);
+  color: white;
 }
 
 /* Messages Area */
@@ -410,7 +407,7 @@
 
 @media (max-width: 768px) {
   .chat-interface {
-    padding: 66px 10px 0;
+    padding: 76px 10px 0;
     height: 100vh;
   }
 
@@ -480,13 +477,13 @@
 
 @media (max-width: 480px) {
   .chat-interface {
-    padding: 61px 5px 0;
+    padding: 70px 5px 0;
     background: #f8fafb;
     height: 100vh;
   }
 
   .chat-card {
-    height: calc(100vh - 66px);
+    height: calc(100vh - 70px);
     border-radius: 12px 12px 0 0;
     border-bottom: none;
   }
