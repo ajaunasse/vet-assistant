@@ -58,9 +58,9 @@ shell-db: ## Open MySQL shell
 	docker-compose exec db mysql -u neurovet -p neurovet_db
 
 # Development commands
-install: ## Install backend dependencies
+# Install backend dependencies
+install:
 	docker-compose exec backend uv sync
-
 # Database commands
 db-init: ## Initialize database (create tables)
 	docker-compose exec backend uv run python scripts/init_db.py init

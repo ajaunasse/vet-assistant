@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { VeterinaryAssessment } from '../types/api';
+import MarkdownRenderer from './MarkdownRenderer';
 import '../styles/AssessmentDisplay.css';
 
 interface AssessmentDisplayProps {
@@ -65,7 +66,9 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
 
       {/* Message principal en évidence */}
       <div className="assessment-message">
-        <p className="main-assessment">{assessment.assessment}</p>
+        <div className="main-assessment">
+          <MarkdownRenderer content={assessment.assessment} />
+        </div>
       </div>
 
       {/* Question pour la phase de collecte */}
@@ -73,7 +76,7 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
         <div className="questions-section">
           <h4>❓ Question de suivi</h4>
           <div className="question-item">
-            <p>{assessment.question}</p>
+            <MarkdownRenderer content={assessment.question} />
           </div>
         </div>
       )}
@@ -95,7 +98,9 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
               {assessment.localization && (
                 <div className="assessment-section">
                   <h4>🎯 Localisation Neuroanatomique</h4>
-                  <p className="localization">{assessment.localization}</p>
+                  <div className="localization">
+                    <MarkdownRenderer content={assessment.localization} />
+                  </div>
                 </div>
               )}
 
@@ -107,14 +112,16 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
                       <div key={index} className="differential-item">
                         <div className="differential-header">
                           <span className="condition-name">{differential.condition}</span>
-                          <span 
+                          <span
                             className="probability-badge"
                             style={{ backgroundColor: getProbabilityColor(differential.probability) }}
                           >
                             {differential.probability}
                           </span>
                         </div>
-                        <p className="rationale">{differential.rationale}</p>
+                        <div className="rationale">
+                          <MarkdownRenderer content={differential.rationale} />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -135,14 +142,18 @@ const AssessmentDisplay: React.FC<AssessmentDisplayProps> = ({ assessment }) => 
               {assessment.treatment && (
                 <div className="assessment-section">
                   <h4>💊 Approche Thérapeutique</h4>
-                  <p className="treatment">{assessment.treatment}</p>
+                  <div className="treatment">
+                    <MarkdownRenderer content={assessment.treatment} />
+                  </div>
                 </div>
               )}
 
               {assessment.prognosis && (
                 <div className="assessment-section">
                   <h4>📈 Pronostic</h4>
-                  <p className="prognosis">{assessment.prognosis}</p>
+                  <div className="prognosis">
+                    <MarkdownRenderer content={assessment.prognosis} />
+                  </div>
                 </div>
               )}
             </div>

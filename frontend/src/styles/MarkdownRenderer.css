@@ -1,0 +1,76 @@
+/* Markdown Renderer Styles */
+
+.markdown-paragraph {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.markdown-paragraph:not(:last-child) {
+  margin-bottom: 0.75em;
+}
+
+.markdown-bold {
+  font-weight: 600;
+  color: inherit;
+}
+
+.markdown-italic {
+  font-style: italic;
+}
+
+.markdown-list,
+.markdown-list-ordered {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-list-item {
+  margin: 0.25em 0;
+  line-height: 1.5;
+}
+
+.markdown-h1,
+.markdown-h2,
+.markdown-h3,
+.markdown-h4 {
+  margin: 0.75em 0 0.5em 0;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.markdown-h1 {
+  font-size: 1.5em;
+}
+
+.markdown-h2 {
+  font-size: 1.3em;
+}
+
+.markdown-h3 {
+  font-size: 1.15em;
+}
+
+.markdown-h4 {
+  font-size: 1em;
+}
+
+.markdown-code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.markdown-pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0.75em 0;
+}
+
+.markdown-pre code {
+  background: none;
+  padding: 0;
+}

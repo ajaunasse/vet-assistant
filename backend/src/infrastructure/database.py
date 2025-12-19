@@ -1,5 +1,7 @@
 """Database setup and configuration."""
 import os
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -7,6 +9,8 @@ from dotenv import load_dotenv
 from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, Integer, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, relationship
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables FIRST
 load_dotenv()
@@ -49,10 +53,22 @@ class Database:
             expire_on_commit=False,
         )
 
-    async def create_tables(self) -> None:
-        """Create all database tables."""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    async def create_tables(self, max_retries: int = 10, retry_delay: int = 2) -> None:
+        """Create all database tables with retry logic."""
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempting to connect to database (attempt {attempt + 1}/{max_retries})...")
+                async with self.engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("Successfully connected to database and created tables")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Failed to connect to database: {e}. Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to database after {max_retries} attempts")
+                    raise
 
     async def close(self) -> None:
         """Close database connections."""

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import { apiService } from '../services/api';
 import { VeterinaryAssessment, PatientData } from '../types/api';
 import AssessmentDisplay from './AssessmentDisplay';
 import PatientDataDisplay from './PatientDataDisplay';
 import ConversationSidebar from './ConversationSidebar';
-import PreConsultationForm from './PreConsultationForm';
+import PreConsultationFormMUI from './PreConsultationFormMUI';
+import MarkdownRenderer from './MarkdownRenderer';
 import SessionManager from '../utils/SessionManager';
 import { conversationHistory } from '../services/conversationHistory';
 import '../styles/ChatInterface.css';
@@ -31,6 +33,7 @@ interface PreConsultationData {
 }
 
 const ChatInterface: React.FC = () => {
+  const { sessionId: sessionIdFromUrl } = useParams<{ sessionId?: string }>();
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -47,13 +50,6 @@ const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Extract session ID from URL path
-  const getSessionIdFromUrl = () => {
-    const path = window.location.pathname;
-    const sessionId = path.split('/').pop();
-    return sessionId && sessionId !== '' ? sessionId : null;
-  };
-
   const handleConversationSelect = (sessionId: string) => {
     window.location.href = `/${sessionId}`;
   };
@@ -66,8 +62,7 @@ const ChatInterface: React.FC = () => {
   const initializeSession = useCallback(async () => {
     try {
       console.log('[ChatInterface] Initializing session...');
-      const sessionIdFromUrl = getSessionIdFromUrl();
-      
+
       if (sessionIdFromUrl) {
         // Load existing session by ID
         console.log('[ChatInterface] Loading session by ID:', sessionIdFromUrl);
@@ -113,7 +108,7 @@ const ChatInterface: React.FC = () => {
         setIsConnected(true);
         
         // Check if we should show pre-consultation form for new sessions
-        if (messages.length === 0 && !getSessionIdFromUrl()) {
+        if (messages.length === 0 && !sessionIdFromUrl) {
           setShowPreConsultationForm(true);
           setIsNewConsultation(true);
         }
@@ -122,7 +117,7 @@ const ChatInterface: React.FC = () => {
       console.error('[ChatInterface] Failed to initialize session:', error);
       setIsConnected(false);
     }
-  }, []);
+  }, [sessionIdFromUrl]);
 
   const fetchPatientData = useCallback(async (sessionId: string) => {
     try {
@@ -168,8 +163,7 @@ const ChatInterface: React.FC = () => {
       await fetchPatientData(sessionId);
       
       // Redirect to session URL after first message (if not already there)
-      const currentSessionUrl = getSessionIdFromUrl();
-      if (!currentSessionUrl && messages.length === 1) { // Only welcome message before
+      if (!sessionIdFromUrl && messages.length === 1) { // Only welcome message before
         try {
           const sessionData = await apiService.getSession(sessionId);
           if (sessionData.session.slug) {
@@ -189,9 +183,9 @@ const ChatInterface: React.FC = () => {
         } catch (error) {
           console.error('Failed to get session slug:', error);
         }
-      } else if (currentSessionUrl) {
+      } else if (sessionIdFromUrl) {
         // Update existing conversation activity
-        conversationHistory.updateActivity(currentSessionUrl, messages.length + 1);
+        conversationHistory.updateActivity(sessionIdFromUrl, messages.length + 1);
       }
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -345,7 +339,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
     if (isNewConsultation) {
       // If it's a new consultation and user cancels, redirect to home
       setIsNewConsultation(false);
-      if (!getSessionIdFromUrl()) {
+      if (!sessionIdFromUrl) {
         // Add welcome message for cancelled new consultation
         const welcomeMessage: Message = {
           id: 'welcome',
@@ -379,7 +373,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
           <div className="chat-header">
             <h1>
               <i className="fas fa-brain"></i>
-              <span>NeuroVet - Assistant Diagnostique</span>
+              <span>NeuroLocus - Assistant Diagnostique</span>
             </h1>
             <div className="header-controls">
               <button 
@@ -409,7 +403,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
                   <div className="message-header">
                     <span className="role">
                       <i className={`fas ${message.role === 'user' ? 'fa-user-md' : 'fa-robot'}`}></i>
-                      <span>{message.role === 'user' ? 'Vétérinaire' : 'Dr. NeuroVet'}</span>
+                      <span>{message.role === 'user' ? 'Vétérinaire' : 'Dr. NeuroLocus'}</span>
                     </span>
                     <span className="timestamp">{formatTime(message.timestamp)}</span>
                   </div>
@@ -417,7 +411,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
                     <AssessmentDisplay assessment={message.assessment} />
                   ) : (
                     <div className="message-content">
-                      {message.content}
+                      <MarkdownRenderer content={message.content} />
                     </div>
                   )}
                 </div>
@@ -427,7 +421,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
                   <div className="message-header">
                     <span className="role">
                       <i className="fas fa-robot"></i>
-                      <span>Dr. NeuroVet</span>
+                      <span>Dr. NeuroLocus</span>
                     </span>
                   </div>
                   <div className="message-content loading">
@@ -477,7 +471,7 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
 
         {/* Pre-consultation form */}
         {showPreConsultationForm && (
-          <PreConsultationForm
+          <PreConsultationFormMUI
             onSubmit={handlePreConsultationSubmit}
             onCancel={handlePreConsultationCancel}
           />

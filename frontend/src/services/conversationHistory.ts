@@ -8,7 +8,7 @@ interface ConversationSummary {
 }
 
 class ConversationHistoryService {
-  private readonly STORAGE_KEY = 'neurovet_conversations';
+  private readonly STORAGE_KEY = 'neurolocus_conversations';
 
   /**
    * Get all saved conversations
