@@ -1,15 +1,22 @@
 """Database setup and configuration."""
 import os
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, func
+from dotenv import load_dotenv
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, JSON, Boolean, Integer, func
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base, relationship
 
+logger = logging.getLogger(__name__)
+
+# Load environment variables FIRST
+load_dotenv()
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://neurovet:neurovet_pass@localhost:3306/neurovet_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "mysql+aiomysql://neuro_user:NeuroVet2024!@localhost:3306/neurolocalizer")
 
 # Create async engine
 engine = create_async_engine(
@@ -46,10 +53,22 @@ class Database:
             expire_on_commit=False,
         )
 
-    async def create_tables(self) -> None:
-        """Create all database tables."""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    async def create_tables(self, max_retries: int = 10, retry_delay: int = 2) -> None:
+        """Create all database tables with retry logic."""
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"Attempting to connect to database (attempt {attempt + 1}/{max_retries})...")
+                async with self.engine.begin() as conn:
+                    await conn.run_sync(Base.metadata.create_all)
+                logger.info("Successfully connected to database and created tables")
+                return
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Failed to connect to database: {e}. Retrying in {retry_delay} seconds...")
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(f"Failed to connect to database after {max_retries} attempts")
+                    raise
 
     async def close(self) -> None:
         """Close database connections."""
@@ -75,8 +94,11 @@ class SessionModel(Base):
     id = Column(String(36), primary_key=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    slug = Column(String(100), nullable=True, unique=True, index=True)
     current_assessment = Column(JSON, nullable=True)
     openai_thread_id = Column(String(255), nullable=True)
+    patient_data = Column(JSON, nullable=True)
+    is_collecting_data = Column(Boolean, default=True)
 
     # Relationships
     messages = relationship("MessageModel", back_populates="session", cascade="all, delete-orphan")
@@ -91,9 +113,30 @@ class MessageModel(Base):
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String(20), nullable=True)  # "processed" or "completed" for assistant messages
+    follow_up_question = Column(Text, nullable=True)  # Question de suivi for assistant messages
 
     # Relationships
     session = relationship("SessionModel", back_populates="messages")
+
+
+class DogBreedModel(Base):
+    """SQLAlchemy model for dog breeds."""
+    __tablename__ = "dog_breeds"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class ConsultationReasonModel(Base):
+    """SQLAlchemy model for consultation reasons."""
+    __tablename__ = "consultation_reasons"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 # Global database instance

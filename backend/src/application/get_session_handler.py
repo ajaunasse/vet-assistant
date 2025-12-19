@@ -5,6 +5,7 @@ from src.domain.entities import ChatSession, ChatMessage
 from src.domain.repositories import SessionRepository, MessageRepository
 
 from .get_session_query import GetSessionQuery
+from .get_session_by_slug_query import GetSessionBySlugQuery
 
 
 class GetSessionHandler:
@@ -25,4 +26,13 @@ class GetSessionHandler:
             raise ValueError(f"Session {query.session_id} not found")
 
         messages = await self.message_repository.get_by_session_id(query.session_id)
+        return session, messages
+    
+    async def handle_by_slug(self, query: GetSessionBySlugQuery) -> Tuple[ChatSession, List[ChatMessage]]:
+        """Handle the get session by slug query."""
+        session = await self.session_repository.get_by_slug(query.slug)
+        if not session:
+            raise ValueError(f"Session with slug '{query.slug}' not found")
+
+        messages = await self.message_repository.get_by_session_id(session.id)
         return session, messages

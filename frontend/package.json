@@ -1,14 +1,21 @@
 {
-  "name": "neurovet-frontend",
+  "name": "neurolocus-frontend",
   "version": "1.0.0",
   "private": true,
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-scripts": "5.0.1",
-    "axios": "^1.6.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.6",
+    "@mui/material": "^7.3.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "axios": "^1.6.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.11.0",
+    "react-scripts": "5.0.1",
+    "remark-gfm": "^4.0.1",
     "typescript": "^4.9.5"
   },
   "scripts": {
@@ -35,5 +42,5 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://backend:8000"
+  "proxy": "http://localhost:8000"
 }

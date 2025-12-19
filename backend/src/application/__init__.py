@@ -6,6 +6,7 @@ from .send_message_command import SendMessageCommand
 # Queries  
 from .get_session_query import GetSessionQuery
 from .get_session_messages_query import GetSessionMessagesQuery
+from .get_session_by_slug_query import GetSessionBySlugQuery
 
 # Handlers
 from .create_session_handler import CreateSessionHandler
@@ -20,6 +21,7 @@ __all__ = [
     # Queries
     "GetSessionQuery", 
     "GetSessionMessagesQuery",
+    "GetSessionBySlugQuery",
     # Handlers
     "CreateSessionHandler",
     "SendMessageHandler",
