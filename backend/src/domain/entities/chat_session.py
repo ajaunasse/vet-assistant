@@ -47,6 +47,7 @@ class ChatSession:
     openai_thread_id: Optional[str] = None
     patient_data: Optional["PatientData"] = None
     is_collecting_data: bool = True
+    user_id: Optional[str] = None
 
     @classmethod
     def create(cls) -> ChatSession:
