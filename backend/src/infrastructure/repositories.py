@@ -4,10 +4,10 @@ from typing import List, Optional
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment, PatientData, DogBreed, ConsultationReason
-from src.domain.repositories import SessionRepository, MessageRepository, DogBreedRepository, ConsultationReasonRepository
+from src.domain.entities import ChatSession, ChatMessage, VeterinaryAssessment, PatientData, DogBreed, ConsultationReason, User, RefreshToken
+from src.domain.repositories import SessionRepository, MessageRepository, DogBreedRepository, ConsultationReasonRepository, UserRepository, RefreshTokenRepository
 
-from .database import SessionModel, MessageModel, DogBreedModel, ConsultationReasonModel
+from .database import SessionModel, MessageModel, DogBreedModel, ConsultationReasonModel, UserModel, RefreshTokenModel
 
 
 def _session_to_entity(model: SessionModel) -> ChatSession:
@@ -44,6 +44,7 @@ def _session_to_entity(model: SessionModel) -> ChatSession:
         openai_thread_id=model.openai_thread_id,
         patient_data=patient_data,
         is_collecting_data=model.is_collecting_data if hasattr(model, 'is_collecting_data') else True,
+        user_id=model.user_id if hasattr(model, 'user_id') else None,
     )
 
 
@@ -77,6 +78,7 @@ def _entity_to_session_model(entity: ChatSession) -> SessionModel:
         openai_thread_id=entity.openai_thread_id,
         patient_data=patient_data_dict,
         is_collecting_data=entity.is_collecting_data,
+        user_id=entity.user_id,
     )
 
 
@@ -148,6 +150,7 @@ class SQLSessionRepository(SessionRepository):
         model.slug = session_entity.slug
         model.openai_thread_id = session_entity.openai_thread_id
         model.is_collecting_data = session_entity.is_collecting_data
+        model.user_id = session_entity.user_id
         
         if session_entity.current_assessment:
             model.current_assessment = {
@@ -169,6 +172,17 @@ class SQLSessionRepository(SessionRepository):
         await self.session.flush()
         await self.session.refresh(model)
         return _session_to_entity(model)
+
+    async def get_by_user_id(self, user_id: str) -> List[ChatSession]:
+        """Get all sessions for a user."""
+        stmt = (
+            select(SessionModel)
+            .where(SessionModel.user_id == user_id)
+            .order_by(desc(SessionModel.updated_at))
+        )
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+        return [_session_to_entity(model) for model in models]
 
 
 class SQLMessageRepository(MessageRepository):
@@ -283,3 +297,194 @@ class SQLConsultationReasonRepository(ConsultationReasonRepository):
         result = await self.session.execute(stmt)
         model = result.scalar_one_or_none()
         return _consultation_reason_to_entity(model) if model else None
+
+
+def _user_to_entity(model: UserModel) -> User:
+    """Convert user model to entity."""
+    from datetime import UTC
+
+    # MySQL returns naive datetimes, so we need to add UTC timezone
+    verification_token_expires = None
+    if model.verification_token_expires:
+        verification_token_expires = model.verification_token_expires.replace(tzinfo=UTC)
+
+    return User(
+        id=model.id,
+        email=model.email,
+        hashed_password=model.hashed_password,
+        first_name=model.first_name,
+        last_name=model.last_name,
+        clinic_name=model.clinic_name,
+        order_number=model.order_number,
+        specialty=model.specialty,
+        is_student=model.is_student,
+        school_name=model.school_name,
+        is_verified=model.is_verified,
+        verification_token=model.verification_token,
+        verification_token_expires=verification_token_expires,
+        created_at=model.created_at.replace(tzinfo=UTC),
+        updated_at=model.updated_at.replace(tzinfo=UTC),
+    )
+
+
+def _entity_to_user_model(entity: User) -> UserModel:
+    """Convert user entity to model."""
+    # Remove timezone info for MySQL storage (MySQL doesn't store timezone info)
+    verification_token_expires = None
+    if entity.verification_token_expires:
+        verification_token_expires = entity.verification_token_expires.replace(tzinfo=None)
+
+    return UserModel(
+        id=entity.id,
+        email=entity.email,
+        hashed_password=entity.hashed_password,
+        first_name=entity.first_name,
+        last_name=entity.last_name,
+        clinic_name=entity.clinic_name,
+        order_number=entity.order_number,
+        specialty=entity.specialty,
+        is_student=entity.is_student,
+        school_name=entity.school_name,
+        is_verified=entity.is_verified,
+        verification_token=entity.verification_token,
+        verification_token_expires=verification_token_expires,
+        created_at=entity.created_at.replace(tzinfo=None),
+        updated_at=entity.updated_at.replace(tzinfo=None),
+    )
+
+
+def _refresh_token_to_entity(model: RefreshTokenModel) -> RefreshToken:
+    """Convert refresh token model to entity."""
+    from datetime import UTC
+
+    # MySQL returns naive datetimes, so we need to add UTC timezone
+    return RefreshToken(
+        id=model.id,
+        user_id=model.user_id,
+        token=model.token,
+        expires_at=model.expires_at.replace(tzinfo=UTC),
+        created_at=model.created_at.replace(tzinfo=UTC),
+        revoked=model.revoked,
+    )
+
+
+def _entity_to_refresh_token_model(entity: RefreshToken) -> RefreshTokenModel:
+    """Convert refresh token entity to model."""
+    # Remove timezone info for MySQL storage (MySQL doesn't store timezone info)
+    return RefreshTokenModel(
+        id=entity.id,
+        user_id=entity.user_id,
+        token=entity.token,
+        expires_at=entity.expires_at.replace(tzinfo=None),
+        created_at=entity.created_at.replace(tzinfo=None),
+        revoked=entity.revoked,
+    )
+
+
+class SQLUserRepository(UserRepository):
+    """SQLAlchemy implementation of UserRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, user: User) -> User:
+        """Create a new user."""
+        model = _entity_to_user_model(user)
+        self.session.add(model)
+        await self.session.flush()
+        await self.session.refresh(model)
+        return _user_to_entity(model)
+
+    async def get_by_id(self, user_id: str) -> Optional[User]:
+        """Get a user by ID."""
+        stmt = select(UserModel).where(UserModel.id == user_id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _user_to_entity(model) if model else None
+
+    async def get_by_email(self, email: str) -> Optional[User]:
+        """Get a user by email."""
+        stmt = select(UserModel).where(UserModel.email == email)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _user_to_entity(model) if model else None
+
+    async def update(self, user: User) -> User:
+        """Update an existing user."""
+        stmt = select(UserModel).where(UserModel.id == user.id)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+
+        if not model:
+            raise ValueError(f"User {user.id} not found")
+
+        # Update fields
+        model.email = user.email
+        model.hashed_password = user.hashed_password
+        model.first_name = user.first_name
+        model.last_name = user.last_name
+        model.clinic_name = user.clinic_name
+        model.order_number = user.order_number
+        model.specialty = user.specialty
+        model.is_student = user.is_student
+        model.school_name = user.school_name
+        model.is_verified = user.is_verified
+        model.verification_token = user.verification_token
+        model.verification_token_expires = user.verification_token_expires
+        model.updated_at = user.updated_at
+
+        await self.session.flush()
+        await self.session.refresh(model)
+        return _user_to_entity(model)
+
+    async def get_by_verification_token(self, token: str) -> Optional[User]:
+        """Get a user by verification token."""
+        stmt = select(UserModel).where(UserModel.verification_token == token)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _user_to_entity(model) if model else None
+
+
+class SQLRefreshTokenRepository(RefreshTokenRepository):
+    """SQLAlchemy implementation of RefreshTokenRepository."""
+
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, refresh_token: RefreshToken) -> RefreshToken:
+        """Create a new refresh token."""
+        model = _entity_to_refresh_token_model(refresh_token)
+        self.session.add(model)
+        await self.session.flush()
+        await self.session.refresh(model)
+        return _refresh_token_to_entity(model)
+
+    async def get_by_token(self, token: str) -> Optional[RefreshToken]:
+        """Get a refresh token by token value."""
+        stmt = select(RefreshTokenModel).where(RefreshTokenModel.token == token)
+        result = await self.session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return _refresh_token_to_entity(model) if model else None
+
+    async def revoke_user_tokens(self, user_id: str) -> None:
+        """Revoke all refresh tokens for a user."""
+        stmt = select(RefreshTokenModel).where(RefreshTokenModel.user_id == user_id)
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        for model in models:
+            model.revoked = True
+
+        await self.session.flush()
+
+    async def delete_expired(self) -> None:
+        """Delete all expired refresh tokens."""
+        from datetime import datetime, UTC
+        stmt = select(RefreshTokenModel).where(RefreshTokenModel.expires_at < datetime.now(UTC))
+        result = await self.session.execute(stmt)
+        models = result.scalars().all()
+
+        for model in models:
+            await self.session.delete(model)
+
+        await self.session.flush()

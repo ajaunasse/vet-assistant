@@ -54,8 +54,8 @@ def get_ai_service() -> AIService:
             detail="OpenAI Prompt ID not configured. Please set OPENAI_PROMPT_ID environment variable."
         )
 
-    prompt_version = os.getenv("OPENAI_PROMPT_VERSION", "2")
-    model = os.getenv("OPENAI_MODEL", "gpt-4o")
+    prompt_version = os.getenv("OPENAI_PROMPT_VERSION", "6")
+    model = os.getenv("OPENAI_MODEL", "gpt-5.2")
     temperature = float(os.getenv("TEMPERATURE", "0.3"))
     max_tokens = int(os.getenv("MAX_TOKENS", "2000"))
 

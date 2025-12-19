@@ -32,6 +32,8 @@ class User:
     clinic_name: Optional[str] = None
     order_number: Optional[str] = None
     specialty: Optional[str] = None
+    is_student: bool = False
+    school_name: Optional[str] = None
     verification_token: Optional[str] = None
     verification_token_expires: Optional[datetime] = None
 
@@ -45,6 +47,8 @@ class User:
         clinic_name: Optional[str] = None,
         order_number: Optional[str] = None,
         specialty: Optional[str] = None,
+        is_student: bool = False,
+        school_name: Optional[str] = None,
     ) -> User:
         """Create a new user with verification token."""
         now = datetime.now(UTC)
@@ -60,6 +64,8 @@ class User:
             clinic_name=clinic_name,
             order_number=order_number,
             specialty=specialty,
+            is_student=is_student,
+            school_name=school_name,
             is_verified=False,
             verification_token=verification_token,
             verification_token_expires=verification_expires,
@@ -94,6 +100,8 @@ class User:
         clinic_name: Optional[str] = None,
         order_number: Optional[str] = None,
         specialty: Optional[str] = None,
+        is_student: Optional[bool] = None,
+        school_name: Optional[str] = None,
     ) -> None:
         """Update user profile information."""
         if first_name is not None:
@@ -106,5 +114,9 @@ class User:
             self.order_number = order_number
         if specialty is not None:
             self.specialty = specialty
+        if is_student is not None:
+            self.is_student = is_student
+        if school_name is not None:
+            self.school_name = school_name
 
         self.updated_at = datetime.now(UTC)

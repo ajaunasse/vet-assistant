@@ -30,7 +30,7 @@ const LandingPage: React.FC = () => {
       <nav className="landing-nav">
         <div className="nav-container">
           <div className="nav-logo">
-            <i className="fas fa-brain"></i>
+            <img src="/neuro-locus-logo.png" alt="NeuroLocus" style={{ height: '40px', marginRight: '10px' }} />
             <span>NeuroLocus</span>
           </div>
           <button className="nav-cta" onClick={handleStartConsultation}>
