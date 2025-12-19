@@ -19,6 +19,8 @@ interface Message {
   status?: string;  // "processed" or "completed" for assistant messages
   follow_up_question?: string;  // Question de suivi for assistant messages
   assessment?: VeterinaryAssessment;
+  isError?: boolean;  // True if this is an error message
+  retryMessageContent?: string;  // Content of the message to retry
 }
 
 interface PreConsultationData {
@@ -75,23 +77,31 @@ const ChatInterface: React.FC = () => {
         setIsConnected(true);
         
         // Load messages from the session
-        const loadedMessages = sessionData.messages.map((msg: any) => {
-          // For assistant messages, create assessment from message's own status and question
+        const loadedMessages = sessionData.messages.map((msg: any, index: number) => {
+          // For the last assistant message, use the session's current_assessment if available
           let assessment: VeterinaryAssessment | undefined = undefined;
+          const isLastAssistantMessage = msg.role === 'assistant' &&
+            index === sessionData.messages.length - 1;
+
           if (msg.role === 'assistant' && msg.status) {
-            // Create assessment from message data
-            assessment = {
-              assessment: msg.content.replace(/^Assessment: /, ''),
-              status: msg.status,
-              question: msg.follow_up_question || '',
-              localization: undefined,
-              differentials: [],
-              diagnostics: [],
-              treatment: '',
-              prognosis: '',
-              patient_data: [],
-              confidence_level: 'moyenne'
-            };
+            if (isLastAssistantMessage && sessionData.session.current_assessment) {
+              // Use the full assessment from the session
+              assessment = sessionData.session.current_assessment;
+            } else {
+              // For older messages, create a minimal assessment
+              assessment = {
+                assessment: msg.content.replace(/^Assessment: /, ''),
+                status: msg.status,
+                question: msg.follow_up_question || '',
+                localization: undefined,
+                differentials: [],
+                diagnostics: [],
+                treatment: '',
+                prognosis: '',
+                patient_data: [],
+                confidence_level: 'moyenne'
+              };
+            }
           }
 
           return {
@@ -217,7 +227,9 @@ const ChatInterface: React.FC = () => {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
-        timestamp: new Date()
+        timestamp: new Date(),
+        isError: true,
+        retryMessageContent: inputMessage
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
@@ -226,10 +238,63 @@ const ChatInterface: React.FC = () => {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  };
+
+  const handleRetry = async (errorMessageId: string, messageToRetry: string) => {
+    // Remove the error message
+    setMessages(prev => prev.filter(msg => msg.id !== errorMessageId));
+
+    // Resend the message
+    if (!messageToRetry || isLoading || !sessionId) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: messageToRetry,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+
+    try {
+      const assessment = await apiService.sendMessage(sessionId, messageToRetry);
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: assessment.assessment,
+        timestamp: new Date(),
+        assessment
+      };
+
+      setMessages(prev => [...prev, assistantMessage]);
+
+      // Fetch updated patient data after each message
+      await fetchPatientData(sessionId);
+
+      // Update conversation activity
+      if (sessionIdFromUrl) {
+        conversationHistory.updateActivity(sessionIdFromUrl, messages.length + 1);
+      }
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: 'Désolé, une erreur est survenue. Veuillez réessayer.',
+        timestamp: new Date(),
+        isError: true,
+        retryMessageContent: messageToRetry
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const generateInitialPrompt = (data: PreConsultationData): string => {
@@ -436,6 +501,16 @@ Pouvez-vous m'aider à établir un diagnostic neurologique basé sur ces informa
                   ) : (
                     <div className="message-content">
                       <MarkdownRenderer content={message.content} />
+                      {message.isError && message.retryMessageContent && (
+                        <button
+                          className="retry-button"
+                          onClick={() => handleRetry(message.id, message.retryMessageContent!)}
+                          disabled={isLoading}
+                        >
+                          <i className="fas fa-redo"></i>
+                          <span>Réessayer</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

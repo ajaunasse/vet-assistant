@@ -570,3 +570,43 @@
     max-width: 70%;
   }
 }
+
+/* Retry Button */
+.retry-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #48c78e 0%, #3eb07d 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(72, 199, 142, 0.2);
+}
+
+.retry-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #3eb07d 0%, #36a06d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(72, 199, 142, 0.35);
+}
+
+.retry-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(72, 199, 142, 0.25);
+}
+
+.retry-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #9ca3af;
+  box-shadow: none;
+}
+
+.retry-button i {
+  font-size: 14px;
+}

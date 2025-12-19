@@ -9,6 +9,21 @@ const LandingPage: React.FC = () => {
     navigate('/chat');
   };
 
+  const handleScrollToFeatures = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    const featuresSection = document.getElementById('features');
+    if (featuresSection) {
+      const navHeight = 70; // Hauteur approximative de la navbar
+      const elementPosition = featuresSection.getBoundingClientRect().top;
+      const offsetPosition = elementPosition + window.pageYOffset - navHeight;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
     <div className="landing-page">
       {/* Navigation */}
@@ -42,7 +57,7 @@ const LandingPage: React.FC = () => {
                 <i className="fas fa-comments"></i>
                 Commencer une consultation
               </button>
-              <a href="#features" className="hero-cta-secondary">
+              <a href="#features" className="hero-cta-secondary" onClick={handleScrollToFeatures}>
                 En savoir plus
                 <i className="fas fa-arrow-down"></i>
               </a>
