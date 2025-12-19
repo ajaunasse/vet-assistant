@@ -113,6 +113,8 @@ class MessageModel(Base):
     role = Column(String(20), nullable=False)
     content = Column(Text, nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    status = Column(String(20), nullable=True)  # "processed" or "completed" for assistant messages
+    follow_up_question = Column(Text, nullable=True)  # Question de suivi for assistant messages
 
     # Relationships
     session = relationship("SessionModel", back_populates="messages")

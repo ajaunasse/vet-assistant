@@ -43,26 +43,27 @@ def get_ai_service() -> AIService:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key or api_key == "demo_key":
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail="OpenAI API key not configured. Please set OPENAI_API_KEY environment variable."
         )
 
-    assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
-    if not assistant_id or assistant_id == "asst_demo":
+    prompt_id = os.getenv("OPENAI_PROMPT_ID")
+    if not prompt_id or prompt_id == "pmpt_demo":
         raise HTTPException(
-            status_code=500, 
-            detail="OpenAI Assistant ID not configured. Please set OPENAI_ASSISTANT_ID environment variable."
+            status_code=500,
+            detail="OpenAI Prompt ID not configured. Please set OPENAI_PROMPT_ID environment variable."
         )
-        
-    model = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+
+    prompt_version = os.getenv("OPENAI_PROMPT_VERSION", "2")
+    model = os.getenv("OPENAI_MODEL", "gpt-4o")
     temperature = float(os.getenv("TEMPERATURE", "0.3"))
     max_tokens = int(os.getenv("MAX_TOKENS", "2000"))
 
     try:
-        return AIService(api_key, assistant_id, model, temperature, max_tokens)
+        return AIService(api_key, prompt_id, prompt_version, model, temperature, max_tokens)
     except Exception as e:
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Failed to initialize AI service: {str(e)}"
         )
 
@@ -159,7 +160,13 @@ async def send_message(
     try:
         command = SendMessageCommand(session_id=session_id, message=request.message)
         assessment = await handler.handle(command)
-        
+
+        # Convert patient_data: if it's a list or empty, set to None
+        # The schema expects a dict (PatientDataAI) or None
+        patient_data_response = None
+        if assessment.patient_data and isinstance(assessment.patient_data, dict):
+            patient_data_response = assessment.patient_data
+
         return VeterinaryAssessmentResponse(
             assessment=assessment.assessment,
             status=assessment.status,
@@ -168,7 +175,7 @@ async def send_message(
             diagnostics=assessment.diagnostics,
             treatment=assessment.treatment,
             prognosis=assessment.prognosis,
-            patient_data=assessment.patient_data,
+            patient_data=patient_data_response,
             question=assessment.question,
             confidence_level=assessment.confidence_level,
         )
@@ -190,6 +197,12 @@ async def get_session(
         # Convert assessment if present
         current_assessment = None
         if session.current_assessment:
+            # Convert patient_data: if it's a list or empty, set to None
+            patient_data_value = getattr(session.current_assessment, 'patient_data', None)
+            patient_data_response = None
+            if patient_data_value and isinstance(patient_data_value, dict):
+                patient_data_response = patient_data_value
+
             current_assessment = VeterinaryAssessmentResponse(
                 assessment=session.current_assessment.assessment,
                 status=session.current_assessment.status,
@@ -198,7 +211,7 @@ async def get_session(
                 diagnostics=session.current_assessment.diagnostics,
                 treatment=session.current_assessment.treatment,
                 prognosis=session.current_assessment.prognosis,
-                patient_data=getattr(session.current_assessment, 'patient_data', []),
+                patient_data=patient_data_response,
                 question=getattr(session.current_assessment, 'question', ''),
                 confidence_level=session.current_assessment.confidence_level,
             )
@@ -223,6 +236,8 @@ async def get_session(
                     role=msg.role,
                     content=msg.content,
                     timestamp=msg.timestamp,
+                    status=msg.status,
+                    follow_up_question=msg.follow_up_question,
                 )
                 for msg in messages
             ],
@@ -375,6 +390,12 @@ async def get_session_by_slug(
         # Convert assessment if present
         current_assessment = None
         if session.current_assessment:
+            # Convert patient_data: if it's a list or empty, set to None
+            patient_data_value = getattr(session.current_assessment, 'patient_data', None)
+            patient_data_response = None
+            if patient_data_value and isinstance(patient_data_value, dict):
+                patient_data_response = patient_data_value
+
             current_assessment = VeterinaryAssessmentResponse(
                 assessment=session.current_assessment.assessment,
                 status=session.current_assessment.status,
@@ -383,7 +404,7 @@ async def get_session_by_slug(
                 diagnostics=session.current_assessment.diagnostics,
                 treatment=session.current_assessment.treatment,
                 prognosis=session.current_assessment.prognosis,
-                patient_data=getattr(session.current_assessment, 'patient_data', []),
+                patient_data=patient_data_response,
                 question=getattr(session.current_assessment, 'question', ''),
                 confidence_level=session.current_assessment.confidence_level,
             )
@@ -408,6 +429,8 @@ async def get_session_by_slug(
                     role=msg.role,
                     content=msg.content,
                     timestamp=msg.timestamp,
+                    status=msg.status,
+                    follow_up_question=msg.follow_up_question,
                 )
                 for msg in messages
             ],

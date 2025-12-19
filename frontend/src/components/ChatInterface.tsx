@@ -16,6 +16,8 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  status?: string;  // "processed" or "completed" for assistant messages
+  follow_up_question?: string;  // Question de suivi for assistant messages
   assessment?: VeterinaryAssessment;
 }
 
@@ -73,13 +75,35 @@ const ChatInterface: React.FC = () => {
         setIsConnected(true);
         
         // Load messages from the session
-        const loadedMessages = sessionData.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: new Date(msg.timestamp),
-          assessment: msg.role === 'assistant' ? sessionData.session.current_assessment : undefined
-        }));
+        const loadedMessages = sessionData.messages.map((msg: any) => {
+          // For assistant messages, create assessment from message's own status and question
+          let assessment: VeterinaryAssessment | undefined = undefined;
+          if (msg.role === 'assistant' && msg.status) {
+            // Create assessment from message data
+            assessment = {
+              assessment: msg.content.replace(/^Assessment: /, ''),
+              status: msg.status,
+              question: msg.follow_up_question || '',
+              localization: undefined,
+              differentials: [],
+              diagnostics: [],
+              treatment: '',
+              prognosis: '',
+              patient_data: [],
+              confidence_level: 'moyenne'
+            };
+          }
+
+          return {
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: new Date(msg.timestamp),
+            status: msg.status,
+            follow_up_question: msg.follow_up_question,
+            assessment
+          };
+        });
         
         setMessages(loadedMessages);
         

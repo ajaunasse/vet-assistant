@@ -2,6 +2,8 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  status?: string;  // "processed" or "completed" for assistant messages
+  follow_up_question?: string;  // Question de suivi for assistant messages
 }
 
 export interface VeterinaryAssessment {

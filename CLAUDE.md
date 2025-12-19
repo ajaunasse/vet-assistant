@@ -8,7 +8,7 @@ NeuroVet is a veterinary neurological diagnostic assistant that uses AI to help 
 - **Backend**: FastAPI with clean architecture (Python 3.12+)
 - **Frontend**: React with TypeScript
 - **Database**: MySQL 8.0
-- **AI**: OpenAI Assistants API with thread persistence
+- **AI**: OpenAI Prompts API with conversation history management
 
 ## Development Environment
 
@@ -20,7 +20,8 @@ NeuroVet is a veterinary neurological diagnostic assistant that uses AI to help 
 ### Environment Configuration
 Copy `.env.example` to `.env` and configure:
 - `OPENAI_API_KEY`: Required for AI functionality
-- `OPENAI_ASSISTANT_ID`: Required - the system uses a custom OpenAI assistant
+- `OPENAI_PROMPT_ID`: Required - the system uses a custom OpenAI prompt (format: pmpt_xxx)
+- `OPENAI_PROMPT_VERSION`: Prompt version (default: 2)
 - `DATABASE_URL`: MySQL connection string (auto-configured in Docker)
 
 ## Common Commands
@@ -104,7 +105,7 @@ The backend follows clean architecture with strict layer separation:
 
 **Infrastructure Layer** (`src/infrastructure/`)
 - External service implementations
-- `ai/ai_service.py`: OpenAI integration with thread persistence
+- `ai/ai_service.py`: OpenAI Prompts API integration with conversation history
 - `repositories.py`: SQL repository implementations
 - `database.py`: SQLAlchemy models and database connection
 
@@ -115,11 +116,13 @@ The backend follows clean architecture with strict layer separation:
 
 ### Key Architectural Patterns
 
-**OpenAI Assistant Integration**:
-- Uses persistent threads (one thread per chat session)
-- Thread ID stored in `chat_sessions.openai_thread_id`
+**OpenAI Prompts API Integration**:
+- Uses OpenAI Prompts API with Conversations for structured responses
+- Conversation history managed by OpenAI (similar to old Assistants API threads)
+- Each session has a persistent conversation ID (stored in `openai_thread_id`)
 - Patient data injected as context with each message
-- Expects JSON responses from the assistant with structured fields
+- Expects JSON responses from the prompt with structured fields
+- Context automatically maintained across messages via conversation
 
 **Session & Conversation Flow**:
 1. Create session → generates unique slug for URL sharing
@@ -157,14 +160,16 @@ The backend follows clean architecture with strict layer separation:
 
 **chat_sessions**:
 - `id` (UUID), `created_at`, `updated_at`, `slug` (unique URL identifier)
-- `openai_thread_id`: OpenAI thread for conversation persistence
+- `openai_thread_id`: Stores OpenAI Conversation ID for persistent context
 - `patient_data` (JSON): Collected patient information
 - `current_assessment` (JSON): Latest AI assessment
 - `is_collecting_data`: Flag for pre-consultation phase
 
 **chat_messages**:
 - `id`, `session_id` (FK), `role`, `content`, `timestamp`
-- Simple message storage, actual conversation in OpenAI thread
+- `status`: Status of assistant message ("processed" or "completed")
+- `follow_up_question`: Question de suivi from assistant
+- Complete conversation history stored locally (OpenAI also maintains context via Conversation ID)
 
 **dog_breeds** & **consultation_reasons**:
 - Reference data for form dropdowns
@@ -172,13 +177,12 @@ The backend follows clean architecture with strict layer separation:
 ## Important Development Notes
 
 ### Working with the AI Service
-- The system requires a configured OpenAI Assistant (set `OPENAI_ASSISTANT_ID`)
-- **Assistant configuration files**:
-  - `.claude/openai-assistant-prompt.txt`: Complete assistant instructions
-  - `.claude/openai-assistant-schema.json`: JSON response schema
-  - Copy these to your OpenAI Assistant configuration
-- **Model settings**: Use gpt-4o, temperature: 0.3, top_p: default (1.0)
-- Assistant returns structured JSON with these fields:
+- The system requires a configured OpenAI Prompt (set `OPENAI_PROMPT_ID`)
+- **Prompt configuration**:
+  - Configure your prompt on the OpenAI platform
+  - The prompt should return structured JSON responses
+  - Recommended model: gpt-4o, temperature: 0.3
+- Prompt returns structured JSON with these fields:
   - Required: `status`, `assessment`, `patient_data` (object)
   - Optional: `localization`, `differentials`, `diagnostics`, `treatment`, `prognosis`, `question`, `confidence_level`
 - **Patient data flow**:
@@ -198,7 +202,7 @@ The backend follows clean architecture with strict layer separation:
     "traitement_actuel": "string"
   }
   ```
-- Thread persistence means the assistant maintains full conversation history
+- Conversation context is maintained by OpenAI via Conversation ID (similar to old thread persistence)
 
 ### Database Migrations
 - Always use Alembic for schema changes, never modify SQLAlchemy models directly without migrations
@@ -245,7 +249,7 @@ GET  /api/v1/consultation-reasons          # List consultation reasons
 ### Modifying AI Response Structure
 1. Update `VeterinaryAssessment` entity in `src/domain/entities/veterinary_assessment.py`
 2. Update Pydantic schema in `src/presentation/schemas.py`
-3. Update OpenAI Assistant instructions to match new structure
+3. Update OpenAI Prompt configuration to match new structure
 4. Update frontend types in `src/types/api.ts`
 5. Update display components as needed
 
@@ -255,4 +259,4 @@ This is a French-language veterinary application:
 - All user-facing text is in French
 - Medical terminology uses French veterinary conventions
 - Patient data fields use French names (race, âge, sexe, etc.)
-- AI assistant is configured for French veterinary neurology expertise
+- AI prompt is configured for French veterinary neurology expertise

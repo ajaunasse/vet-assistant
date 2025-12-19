@@ -232,7 +232,7 @@ const LandingPage: React.FC = () => {
               </p>
             </div>
             <div className="footer-links">
-              
+
             </div>
           </div>
           <div className="footer-bottom">

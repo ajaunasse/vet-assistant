@@ -1,5 +1,4 @@
-"""AI service for veterinary neurological diagnostics using OpenAI Assistant API."""
-import asyncio
+"""AI service for veterinary neurological diagnostics using OpenAI Prompts API."""
 import json
 from typing import List, Dict, Any
 import openai
@@ -8,18 +7,20 @@ from src.domain.entities import ChatMessage, VeterinaryAssessment, PatientData
 
 
 class AIService:
-    """AI service for generating veterinary assessments using OpenAI Assistant API."""
+    """AI service for generating veterinary assessments using OpenAI Prompts API."""
 
     def __init__(
         self,
         api_key: str,
-        assistant_id: str,
-        model: str = "gpt-4.1",
+        prompt_id: str,
+        prompt_version: str = "2",
+        model: str = "gpt-4o",
         temperature: float = 0.3,
         max_tokens: int = 2000,
     ):
         self.client = openai.AsyncOpenAI(api_key=api_key)
-        self.assistant_id = assistant_id
+        self.prompt_id = prompt_id
+        self.prompt_version = prompt_version
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -27,10 +28,11 @@ class AIService:
     async def process_message(
         self, messages: List[ChatMessage], session
     ) -> VeterinaryAssessment:
-        """Process message using your OpenAI assistant."""
+        """Process message using OpenAI Prompts API."""
         try:
-            return await self._use_assistant(messages, session)
+            return await self._use_prompt_api(messages, session)
         except Exception as e:
+            print(f"[ERROR] AI Service error: {str(e)}")
             return VeterinaryAssessment(
                 assessment=f"Erreur technique: {str(e)}",
                 treatment="Consultation vétérinaire recommandée",
@@ -39,96 +41,82 @@ class AIService:
                 confidence_level="faible"
             )
 
-    async def _use_assistant(
+    async def _use_prompt_api(
         self, messages: List[ChatMessage], session
     ) -> VeterinaryAssessment:
-        """Use your OpenAI Assistant API with thread persistence."""
-        # Get or create thread for this session
-        thread_id = await self._get_or_create_thread(session)
+        """Use OpenAI Prompts API with Conversations to generate assessment."""
+        # Get or create conversation for this session
+        conversation_id = await self._get_or_create_conversation(session)
 
-        # Add the latest user message to the thread with patient data context
+        # Get the latest user message
         latest_message = messages[-1] if messages else None
-        if latest_message and latest_message.role == "user":
-            message_content = latest_message.content
-            
-            # Add patient data context if available
-            if session.patient_data:
-                patient_context = self._format_patient_data_for_ai(session.patient_data)
-                message_content = f"{patient_context}\n\n{message_content}"
-            
-            await self.client.beta.threads.messages.create(
-                thread_id=thread_id,
-                role="user",
-                content=message_content
+        if not latest_message or latest_message.role != "user":
+            raise ValueError("No user message found")
+
+        # Prepare the user input with patient data context if available
+        user_input = latest_message.content
+        if session.patient_data:
+            patient_context = self._format_patient_data_for_ai(session.patient_data)
+            user_input = f"{patient_context}\n\n{user_input}"
+
+        # Call the Prompts API with Conversations
+        try:
+            response = await self.client.responses.create(
+                model=self.model,
+                conversation=conversation_id,
+                prompt={
+                    "id": self.prompt_id,
+                    "version": self.prompt_version
+                },
+                input=[{"role": "user", "content": user_input}]
             )
 
-        # Run your assistant with its configured instructions
-        run = await self.client.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=self.assistant_id
-        )
+            # Extract the response content
+            if hasattr(response, 'output_text'):
+                content = response.output_text
+            elif hasattr(response, 'output') and isinstance(response.output, list):
+                content = response.output[0].get('content', str(response))
+            else:
+                content = str(response)
 
-        # Wait for completion
-        while run.status in ["queued", "in_progress"]:
-            await asyncio.sleep(1)
-            run = await self.client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
-                run_id=run.id
-            )
+            # Try to parse as JSON
+            try:
+                assessment_data = json.loads(content)
 
-        if run.status == "completed":
-            # Get the assistant's response
-            messages_response = await self.client.beta.threads.messages.list(
-                thread_id=thread_id,
-                order="desc",
-                limit=1
-            )
+                # Process patient_data from AI response and update session
+                if 'patient_data' in assessment_data and assessment_data['patient_data']:
+                    await self._process_ai_patient_data(assessment_data['patient_data'], session)
 
-            if messages_response.data:
-                content = messages_response.data[0].content[0].text.value
+                return VeterinaryAssessment(**assessment_data)
+            except json.JSONDecodeError:
+                # If not JSON, create assessment from text
+                return VeterinaryAssessment(
+                    assessment=content,
+                    treatment="Consultation avec votre vétérinaire",
+                    prognosis="Nécessite examen clinique",
+                    question="Pouvez-vous fournir plus de détails sur les symptômes?",
+                    confidence_level="moyenne"
+                )
 
-                # Try to parse as JSON first (if your assistant returns structured data)
-                try:
-                    assessment_data = json.loads(content)
-                    
-                    # Process patient_data from AI response and update session
-                    if 'patient_data' in assessment_data and assessment_data['patient_data']:
-                        await self._process_ai_patient_data(assessment_data['patient_data'], session)
-                    
-                    return VeterinaryAssessment(**assessment_data)
-                except json.JSONDecodeError:
-                    # If not JSON, create assessment from text
-                    return VeterinaryAssessment(
-                        assessment=content,
-                        treatment="Consultation avec votre vétérinaire",
-                        prognosis="Nécessite examen clinique",
-                        question="Pouvez-vous fournir plus de détails sur les symptômes?",
-                        confidence_level="moyenne"
-                    )
+        except Exception as e:
+            print(f"[ERROR] Prompts API call failed: {str(e)}")
+            raise
 
-        # If run failed or no response
-        return VeterinaryAssessment(
-            assessment="Erreur lors de l'exécution de l'assistant",
-            treatment="Consultation vétérinaire recommandée",
-            prognosis="Indéterminé",
-            question="Veuillez reformuler votre question",
-            confidence_level="faible"
-        )
-
-    async def _get_or_create_thread(self, session) -> str:
-        """Get existing thread or create new one for session."""
-        # Check if session already has a thread_id
+    async def _get_or_create_conversation(self, session) -> str:
+        """Get existing conversation or create new one for session."""
+        # Check if session already has a conversation_id (stored in openai_thread_id field)
         if session.openai_thread_id:
             return session.openai_thread_id
-        
-        # Create new thread
-        thread = await self.client.beta.threads.create()
-        thread_id = thread.id
-        
-        # Update session with the thread_id
-        session.set_openai_thread(thread_id)
-        
-        return thread_id
+
+        # Create new conversation
+        conversation = await self.client.conversations.create()
+        conversation_id = conversation.id
+
+        # Update session with the conversation_id (reusing the openai_thread_id field)
+        session.set_openai_thread(conversation_id)
+
+        return conversation_id
+
 
     async def _process_ai_patient_data(self, ai_patient_data: dict, session) -> None:
         """Process patient data from AI response and update session."""

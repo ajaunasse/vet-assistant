@@ -70,6 +70,7 @@ const PreConsultationFormMUI: React.FC<PreConsultationFormProps> = ({ onSubmit, 
   const [dogBreeds, setDogBreeds] = useState<DogBreed[]>([]);
   const [consultationReasons, setConsultationReasons] = useState<ConsultationReason[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [autreMotif, setAutreMotif] = useState('');
 
   useEffect(() => {
     const loadReferenceData = async () => {
@@ -107,7 +108,15 @@ const PreConsultationFormMUI: React.FC<PreConsultationFormProps> = ({ onSubmit, 
       return;
     }
 
-    onSubmit(formData);
+    // Si "Autre" est sélectionné, combiner avec le texte libre
+    const finalMotif = formData.motif_consultation === 'Autre' && autreMotif
+      ? `Autre: ${autreMotif}`
+      : formData.motif_consultation;
+
+    onSubmit({
+      ...formData,
+      motif_consultation: finalMotif
+    });
   };
 
   const isFormValid = formData.race && formData.age && formData.sexe && formData.motif_consultation &&
@@ -204,21 +213,40 @@ const PreConsultationFormMUI: React.FC<PreConsultationFormProps> = ({ onSubmit, 
             </Stack>
 
             {/* Motif de consultation */}
-            <FormControl fullWidth required>
-              <InputLabel>Motif de consultation *</InputLabel>
-              <Select
-                value={formData.motif_consultation}
-                onChange={(e) => setFormData({ ...formData, motif_consultation: e.target.value })}
-                label="Motif de consultation *"
-              >
-                <MenuItem value="">Sélectionnez le motif de consultation</MenuItem>
-                {consultationReasons.map((reason) => (
-                  <MenuItem key={reason.id} value={reason.name}>
-                    {reason.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Stack spacing={2}>
+              <FormControl fullWidth required>
+                <InputLabel>Motif de consultation *</InputLabel>
+                <Select
+                  value={formData.motif_consultation}
+                  onChange={(e) => {
+                    setFormData({ ...formData, motif_consultation: e.target.value });
+                    if (e.target.value !== 'Autre') {
+                      setAutreMotif('');
+                    }
+                  }}
+                  label="Motif de consultation *"
+                >
+                  <MenuItem value="">Sélectionnez le motif de consultation</MenuItem>
+                  {consultationReasons.map((reason) => (
+                    <MenuItem key={reason.id} value={reason.name}>
+                      {reason.name}
+                    </MenuItem>
+                  ))}
+                  <MenuItem value="Autre">Autre</MenuItem>
+                </Select>
+              </FormControl>
+
+              {/* Champ libre pour "Autre" */}
+              {formData.motif_consultation === 'Autre' && (
+                <TextField
+                  fullWidth
+                  label="Précisez le motif (optionnel)"
+                  value={autreMotif}
+                  onChange={(e) => setAutreMotif(e.target.value)}
+                  placeholder="Ex: Comportement anormal, perte d'équilibre..."
+                />
+              )}
+            </Stack>
 
             {/* État de conscience et Comportement */}
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>

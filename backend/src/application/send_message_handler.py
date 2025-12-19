@@ -45,10 +45,12 @@ class SendMessageHandler:
         # Process message using your OpenAI assistant
         assessment = await self.ai_service.process_message(messages, session)
 
-        # Create and save assistant message
+        # Create and save assistant message with status and follow-up question
         assistant_message = ChatMessage.create_assistant_message(
             content=f"Assessment: {assessment.assessment}",
-            session_id=command.session_id
+            session_id=command.session_id,
+            status=assessment.status,
+            follow_up_question=assessment.question if assessment.question else None
         )
         await self.message_repository.create(assistant_message)
 

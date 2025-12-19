@@ -88,6 +88,8 @@ def _message_to_entity(model: MessageModel) -> ChatMessage:
         role=model.role,
         content=model.content,
         timestamp=model.timestamp,
+        status=model.status if hasattr(model, 'status') else None,
+        follow_up_question=model.follow_up_question if hasattr(model, 'follow_up_question') else None,
     )
 
 
@@ -99,6 +101,8 @@ def _entity_to_message_model(entity: ChatMessage) -> MessageModel:
         role=entity.role,
         content=entity.content,
         timestamp=entity.timestamp,
+        status=entity.status,
+        follow_up_question=entity.follow_up_question,
     )
 
 

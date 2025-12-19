@@ -84,6 +84,8 @@ class ChatMessageResponse(BaseModel):
     role: str
     content: str
     timestamp: datetime
+    status: Optional[str] = None  # "processed" or "completed" for assistant messages
+    follow_up_question: Optional[str] = None  # Question de suivi for assistant messages
 
 
 class SessionResponse(BaseModel):
